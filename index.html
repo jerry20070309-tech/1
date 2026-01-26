@@ -2,29 +2,53 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V3.6.8 | GitHub 部署版</title>
+    <title>SNIPER V3.6.9 | 籌碼突破監控</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #000; color: #FFD700; font-family: monospace; }
-        .vp-break-card { border: 2px solid #a855f7; box-shadow: 0 0 20px #a855f7; }
+        body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
         .gold-border { border: 1px solid #FFD700; }
+        .vp-break-card { border: 2px solid #a855f7; box-shadow: 0 0 20px #a855f7; background: #1e1b4b !important; }
+        .log-panel { font-size: 10px; color: #666; font-family: monospace; }
     </style>
 </head>
-<body class="p-5">
-    <div class="mb-5 flex gap-4">
-        <input id="symbolInput" type="text" value="BTCUSDT" class="bg-zinc-800 p-2 text-white border border-zinc-600">
-        <button onclick="startMonitor()" class="bg-yellow-600 text-black px-6 py-2 font-bold rounded">啟動監控</button>
+<body class="h-screen flex flex-col overflow-hidden">
+    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center">
+        <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.9</h1>
+        <div class="flex gap-2">
+            <input id="searchInput" type="text" placeholder="輸入幣名 (如 BTC)" class="bg-zinc-900 text-xs px-2 py-1 focus:outline-none text-white border border-zinc-700 w-32">
+            <button onclick="manualAdd()" class="bg-yellow-600 text-black px-4 py-1 font-bold rounded text-xs">ADD</button>
+            <button onclick="toggleSystem()" id="mainBtn" class="bg-zinc-700 px-4 py-1 rounded text-white font-bold text-xs">START</button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
+            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </main>
+        
+        <aside class="w-64 border-l border-zinc-800 p-4 log-panel overflow-y-auto bg-black">
+            <div class="text-zinc-500 font-bold mb-2 uppercase tracking-widest">System Events</div>
+            <div id="logs"></div>
+        </aside>
     </div>
-    
-    <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 
 <script>
-    // --- 這是你圖片中的核心邏輯，我精確地還原並修正了變數調用 ---
+    // 你的配置 (排除你不想要的幣)
+    const EXCLUDE = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT','BNXUSDT'];
+    let pinnedCoins = [], vpResults = {}, isRunning = false, timer = null;
+
+    function addLog(msg) {
+        const logs = document.getElementById('logs');
+        const d = new Date();
+        logs.innerHTML = `<div>[${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}] ${msg}</div>` + logs.innerHTML;
+        if(logs.children.length > 20) logs.lastChild.remove();
+    }
+
+    // --- 籌碼密集區突破偵測邏輯 (保留原樣) ---
     function checkVolumeProfileBreakout(klines, currentPrice) {
         let maxHigh = 0; let highIdx = 0; 
         klines.forEach((k, i) => { 
-            let h = parseFloat(k[2]); // High price
-            if (h > maxHigh) { maxHigh = h; highIdx = i; } 
+            if (parseFloat(k[2]) > maxHigh) { maxHigh = parseFloat(k[2]); highIdx = i; } 
         }); 
         
         const rangeKlines = klines.slice(highIdx); 
@@ -38,7 +62,7 @@
         
         const bins = new Array(20).fill(0); 
         rangeKlines.forEach(k => { 
-            const vol = parseFloat(k[5]); // Volume
+            const vol = parseFloat(k[5]); 
             const avgP = (parseFloat(k[2]) + parseFloat(k[3])) / 2; 
             const binIdx = Math.min(19, Math.floor((avgP - minP) / binSize)); 
             bins[binIdx] += vol; 
@@ -48,42 +72,101 @@
         const pocPrice = minP + (maxVolBinIdx * binSize); 
         const pocHigh = pocPrice + binSize; 
         
-        return { isBreakout: currentPrice > pocHigh, pocHigh }; 
+        const isBreakout = currentPrice > pocHigh; 
+        return { isBreakout, pocHigh }; 
     }
 
-    // --- 這是確保程式能「正常運行」的數據串接引擎 ---
-    async function startMonitor() {
-        const symbol = document.getElementById('symbolInput').value.toUpperCase();
-        const dashboard = document.getElementById('dashboard');
-        dashboard.innerHTML = '<p class="text-zinc-500">正在獲取數據...</p>';
-
+    async function updateData() {
+        if (pinnedCoins.length === 0) return;
+        addLog("正在掃描密集區...");
         try {
-            // 1. 獲取當前價格
-            const priceRes = await fetch(`https://fapi.binance.com/fapi/v1/ticker/price?symbol=${symbol}`);
-            const priceData = await priceRes.json();
-            const currentPrice = parseFloat(priceData.price);
+            const res = await fetch('https://fapi.binance.com/fapi/v1/premiumIndex');
+            const allData = await res.json();
 
-            // 2. 獲取 K 線資料
-            const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=1h&limit=100`);
-            const klines = await kRes.json();
+            for (const s of pinnedCoins) {
+                const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
+                const klines = await kRes.json();
+                const priceData = allData.find(c => c.symbol === s);
+                
+                if (priceData) {
+                    const price = parseFloat(priceData.markPrice);
+                    vpResults[s] = checkVolumeProfileBreakout(klines, price);
+                }
+            }
+            render(allData);
+        } catch (e) { addLog("API 抓取錯誤"); console.error(e); }
+    }
 
-            // 3. 執行你的 VP 邏輯
-            const result = checkVolumeProfileBreakout(klines, currentPrice);
-
-            // 4. 渲染 UI
-            dashboard.innerHTML = `
-                <div class="p-6 bg-zinc-900 rounded-lg ${result.isBreakout ? 'vp-break-card' : 'gold-border'}">
-                    <h2 class="text-3xl font-black mb-2">${symbol}</h2>
-                    <p class="text-xl">當前價格: <span class="text-white">${currentPrice}</span></p>
-                    <p class="text-xl">POC 頂部: <span class="text-zinc-400">${result.pocHigh.toFixed(4)}</span></p>
-                    <div class="mt-4 p-2 text-center font-bold text-2xl ${result.isBreakout ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-500'}">
-                        ${result.isBreakout ? '🚀 已突破籌碼密集區' : '☁️ 尚在密集區內'}
+    function render(allData) {
+        const container = document.getElementById('dashboard');
+        container.innerHTML = '';
+        pinnedCoins.forEach(s => {
+            const data = allData.find(c => c.symbol === s);
+            if (!data) return;
+            const vp = vpResults[s] || { isBreakout: false, pocHigh: 0 };
+            const card = document.createElement('div');
+            
+            card.className = `p-4 bg-zinc-900 rounded ${vp.isBreakout ? 'vp-break-card' : 'gold-border'}`;
+            card.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-black text-white">${s.replace('USDT','')}</h2>
+                    <button onclick="removeCoin('${s}')" class="text-zinc-500 hover:text-white">❌</button>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <p class="text-zinc-400">當前價格: <span class="text-white font-mono">${parseFloat(data.markPrice).toFixed(4)}</span></p>
+                    <p class="text-zinc-400">密集區頂: <span class="text-yellow-500 font-mono">${vp.pocHigh ? vp.pocHigh.toFixed(4) : '計算中'}</span></p>
+                    <div class="mt-4 pt-2 border-t border-zinc-800 font-bold ${vp.isBreakout ? 'text-purple-400' : 'text-zinc-500'}">
+                        狀態: ${vp.isBreakout ? '🚀 BREAKOUT (突破)' : '☁️ CONSOLIDATION'}
                     </div>
                 </div>
             `;
-        } catch (e) {
-            dashboard.innerHTML = `<p class="text-red-500">運行出錯: ${e.message}</p>`;
+            container.appendChild(card);
+        });
+    }
+
+    function toggleSystem() {
+        isRunning = !isRunning;
+        const btn = document.getElementById('mainBtn');
+        if (isRunning) { 
+            btn.innerText = "STOP"; 
+            btn.className = "bg-red-900 px-4 py-1 rounded text-white font-bold text-xs"; 
+            addLog("系統啟動");
+            loop(); 
+        } else { 
+            btn.innerText = "START"; 
+            btn.className = "bg-zinc-700 px-4 py-1 rounded text-white font-bold text-xs"; 
+            addLog("系統停止");
+            clearTimeout(timer); 
         }
+    }
+
+    async function loop() { 
+        if (!isRunning) return; 
+        await updateData(); 
+        timer = setTimeout(loop, 5000); 
+    }
+
+    function manualAdd() {
+        const input = document.getElementById('searchInput');
+        let s = input.value.toUpperCase().trim();
+        if (!s) return; 
+        if (!s.endsWith('USDT')) s += 'USDT';
+        if (EXCLUDE.includes(s)) { alert("此幣已被過濾"); return; }
+        if (!pinnedCoins.includes(s)) { 
+            pinnedCoins.push(s); 
+            addLog(`已新增: ${s}`);
+            if(isRunning) updateData(); else fetch('https://fapi.binance.com/fapi/v1/premiumIndex').then(res=>res.json()).then(data=>render(data));
+        }
+        input.value = '';
+    }
+
+    function removeCoin(s) { 
+        pinnedCoins = pinnedCoins.filter(c => c !== s); 
+        addLog(`已移除: ${s}`);
+        // 修正這裡，傳入當前的資料狀態而非空陣列
+        fetch('https://fapi.binance.com/fapi/v1/premiumIndex')
+            .then(res => res.json())
+            .then(data => render(data)); 
     }
 </script>
 </body>

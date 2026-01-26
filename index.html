@@ -2,75 +2,90 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V4.1.2 | 全域掃略與搜尋並行版</title>
+    <title>SNIPER V4.0.0 | 全球掃描共振版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; overflow: hidden; }
-        .gold-border { border: 1px solid #333; transition: all 0.3s; }
+        .gold-border { border: 1px solid #333; transition: all 0.5s; }
         .vp-break-card { 
             border: 2px solid #a855f7; 
             box-shadow: 0 0 30px rgba(168, 85, 247, 0.4); 
             background: linear-gradient(145deg, #1e1b4b, #000) !important; 
+            z-index: 10;
         }
-        input[type=range] { -webkit-appearance: none; background: #333; height: 4px; border-radius: 5px; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: #FFD700; cursor: pointer; }
-        .value-badge { font-size: 10px; color: #FFD700; background: #222; padding: 2px 4px; border-radius: 3px; margin-left: 5px; }
+        .slider-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #444; }
+        ::-webkit-scrollbar-thumb { background: #333; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
-    <header class="p-4 border-b border-zinc-800 bg-black flex justify-between items-center shrink-0">
+    <header class="p-4 border-b border-zinc-800 bg-black flex justify-between items-center">
         <div>
-            <h1 class="text-xl font-black text-yellow-500 italic">⚡ SNIPER V4.1.2</h1>
-            <p id="systemStatus" class="text-[9px] text-zinc-500 uppercase tracking-widest">Radar Ready</p>
+            <h1 class="text-xl font-black text-yellow-500">⚡ SNIPER V4.0.0</h1>
+            <p id="systemStatus" class="text-[9px] text-zinc-500">RADAR IDLE</p>
         </div>
         
-        <div class="flex gap-4 items-center bg-zinc-900 p-2 rounded-lg border border-zinc-800">
+        <div class="flex gap-6 items-center bg-zinc-900/50 p-2 rounded-lg border border-zinc-800">
             <div class="flex flex-col">
-                <label class="text-[9px] text-zinc-500">資費斜率門檻 <span id="slopeVal" class="value-badge">-100%</span></label>
-                <input type="range" id="slopeThreshold" min="-500" max="100" value="-100" oninput="updateVal('slopeVal', this.value + '%')">
+                <label class="slider-label">搜尋幣名</label>
+                <input type="text" id="coinSearch" placeholder="例如: DOGE" oninput="render()" class="bg-black border border-zinc-700 text-xs px-2 py-1 focus:outline-none focus:border-yellow-500 text-white w-24 rounded">
             </div>
             <div class="flex flex-col">
-                <label class="text-[9px] text-zinc-500">搜尋指定幣對</label>
-                <input id="searchInput" type="text" placeholder="例: DOGE" class="bg-black border border-zinc-700 text-xs px-2 py-1 text-white w-24 rounded focus:border-yellow-500 outline-none">
+                <label class="slider-label">資費斜率 (<-15%)</label>
+                <input type="range" id="slopeThreshold" min="-50" max="0" value="-15" class="w-24 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer">
             </div>
-            <button onclick="toggleSystem()" id="mainBtn" class="bg-yellow-600 text-black px-6 py-2 font-bold rounded text-xs hover:bg-yellow-500 transition-all">START RADAR</button>
+            <div class="flex flex-col">
+                <label class="slider-label">量能爆發 (>2.5x)</label>
+                <input type="range" id="volThreshold" min="1" max="10" step="0.5" value="2.5" class="w-24 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="flex flex-col">
+                <label class="slider-label">MA纏繞 (<0.8%)</label>
+                <input type="range" id="maThreshold" min="0.1" max="3" step="0.1" value="0.8" class="w-24 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <button onclick="toggleSystem()" id="mainBtn" class="bg-yellow-600 text-black px-6 py-2 font-bold rounded text-xs hover:bg-yellow-400 transition-colors">LAUNCH RADAR</button>
         </div>
     </header>
 
     <div class="flex-1 flex overflow-hidden">
         <main class="flex-1 p-4 overflow-y-auto bg-zinc-950">
-            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                </div>
         </main>
         
-        <aside class="w-64 border-l border-zinc-900 p-4 overflow-y-auto bg-black shrink-0">
-            <div class="text-zinc-500 font-bold mb-4 text-[10px] tracking-widest border-b border-zinc-800 pb-2">SYSTEM ACTIVITY</div>
-            <div id="logs" class="space-y-2 text-[9px] font-mono text-zinc-600"></div>
+        <aside class="w-72 border-l border-zinc-900 p-4 overflow-y-auto bg-black shrink-0">
+            <div class="text-zinc-500 font-bold mb-4 text-[10px] tracking-[0.2em] border-b border-zinc-800 pb-2">RADAR LOGS</div>
+            <div id="logs" class="space-y-2 text-[10px] font-mono"></div>
         </aside>
     </div>
 
 <script>
-    let isRunning = false, allSymbols = [], poolResults = [], scanIdx = 0, timer = null;
+    const EXCLUDE = ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT'];
+    let allSymbols = [], isRunning = false, scanIdx = 0;
+    let poolResults = [];
 
-    function updateVal(id, val) { document.getElementById(id).innerText = val; }
-    function addLog(msg) {
-        const l = document.getElementById('logs');
-        l.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + l.innerHTML;
-        if(l.children.length > 40) l.lastChild.remove();
+    function addLog(msg, type = 'info') {
+        const logs = document.getElementById('logs');
+        const color = type === 'hit' ? 'text-purple-400 font-bold' : 'text-zinc-600';
+        logs.innerHTML = `<div class="${color}">> ${msg}</div>` + logs.innerHTML;
+        if(logs.children.length > 50) logs.lastChild.remove();
     }
 
-    async function getOI(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-            const data = await res.json();
-            return parseFloat(data.openInterest).toLocaleString(undefined, {maximumFractionDigits: 0});
-        } catch (e) { return "N/A"; }
+    function calcMAEntanglement(klines) {
+        const closes = klines.map(k => parseFloat(k[4]));
+        const getMA = (period) => closes.slice(-period).reduce((a, b) => a + b) / period;
+        const ma7 = getMA(7), ma99 = getMA(99), ma200 = getMA(200);
+        const max = Math.max(ma7, ma99, ma200);
+        const min = Math.min(ma7, ma99, ma200);
+        return ((max - min) / min) * 100;
     }
 
-    function calcDynamicStop(klines, currentPrice) {
-        const atr = klines.slice(-20).reduce((acc, k) => acc + (parseFloat(k[2]) - parseFloat(k[3])), 0) / 20;
-        return (currentPrice - (atr * 1.5)).toFixed(4);
+    async function getFundingSlope(symbol) {
+        const res = await fetch(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}&limit=2`);
+        const data = await res.json();
+        if(data.length < 2) return 0;
+        const f1 = parseFloat(data[0].fundingRate);
+        const f2 = parseFloat(data[1].fundingRate);
+        return f1 === 0 ? 0 : ((f2 - f1) / Math.abs(f1)) * 100;
     }
 
     function checkVP(klines, price) {
@@ -91,84 +106,75 @@
 
     async function scanSymbol(s) {
         try {
-            const [kRes, fRes, tRes] = await Promise.all([
-                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=15m&limit=100`),
-                fetch(`https://fapi.binance.com/fapi/v1/fundingRate?symbol=${s}&limit=2`),
+            const [kRes, pRes] = await Promise.all([
+                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=15m&limit=200`),
                 fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${s}`)
             ]);
             const klines = await kRes.json();
-            const funding = await fRes.json();
-            const ticker = await tRes.json();
-            
+            const ticker = await pRes.json();
             const price = parseFloat(ticker.lastPrice);
-            const slope = funding.length >= 2 ? ((parseFloat(funding[1].fundingRate) - parseFloat(funding[0].fundingRate)) / Math.abs(parseFloat(funding[0].fundingRate))) * 100 : 0;
-            const vp = checkVP(klines, price);
-            const oi = await getOI(s);
-            const stopLoss = calcDynamicStop(klines, price);
+            
+            const slopeThr = parseFloat(document.getElementById('slopeThreshold').value);
+            const volThr = parseFloat(document.getElementById('volThreshold').value);
+            const maThr = parseFloat(document.getElementById('maThreshold').value);
 
-            return { symbol: s, price, slope, vp, oi, stopLoss };
+            const volRatio = parseFloat(ticker.quoteVolume) / (parseFloat(ticker.quoteVolume) / 2);
+            const maGap = calcMAEntanglement(klines);
+            const vp = checkVP(klines, price);
+            const slope = await getFundingSlope(s);
+
+            let score = 0;
+            if (vp.isBreakout) score += 40;
+            if (maGap < maThr) score += 30;
+            if (slope < slopeThr) score += 30;
+
+            return { symbol: s, price, vp, maGap, slope, volRatio, score, ticker };
         } catch (e) { return null; }
     }
 
-    // --- 核心邏輯：並行掃描 (搜尋 + 掃略) ---
     async function loop() {
         if(!isRunning) return;
-        
-        const searchInput = document.getElementById('searchInput');
-        const searchVal = searchInput ? searchInput.value.toUpperCase().trim() : "";
-        let targets = [];
-
-        // 1. 如果有搜尋值，強制加入掃描清單 (置頂優先)
-        if (searchVal) {
-            const formatted = searchVal.endsWith('USDT') ? searchVal : searchVal + 'USDT';
-            targets.push(formatted);
-        }
-
-        // 2. 加入當前掃略批次 (全市場自動循環)
-        const batch = allSymbols.slice(scanIdx, scanIdx + 4);
-        targets = [...targets, ...batch];
-
-        for(let s of targets) {
+        const batch = allSymbols.slice(scanIdx, scanIdx + 6);
+        for(let s of batch) {
             const res = await scanSymbol(s);
             if(res) {
-                const idx = poolResults.findIndex(p => p.symbol === res.symbol);
-                if(idx > -1) poolResults[idx] = res; else poolResults.push(res);
+                const existing = poolResults.findIndex(p => p.symbol === res.symbol);
+                if(existing > -1) poolResults[existing] = res;
+                else poolResults.push(res);
+                if(res.score >= 70) addLog(`HIT: ${res.symbol} 分數:${res.score}`, 'hit');
             }
         }
-
-        // 3. 更新索引
-        scanIdx = (scanIdx + 4 >= allSymbols.length) ? 0 : scanIdx + 4;
-        
+        scanIdx = (scanIdx + 6) >= allSymbols.length ? 0 : scanIdx + 6;
         render();
         timer = setTimeout(loop, 3000);
     }
 
     function render() {
         const container = document.getElementById('dashboard');
-        const slopeThr = parseFloat(document.getElementById('slopeThreshold').value);
-        const searchInput = document.getElementById('searchInput').value.toUpperCase();
+        const searchTerm = document.getElementById('coinSearch').value.toUpperCase();
         
-        // 過濾邏輯：符合資費門檻、或是 VP 突破、或是使用者正在搜尋的幣
+        // 加入搜尋過濾邏輯
         const filtered = poolResults.filter(res => 
-            res.slope <= slopeThr || 
-            res.vp.isBreakout || 
-            (searchInput && res.symbol.includes(searchInput))
+            res.symbol.replace('USDT', '').includes(searchTerm)
         );
+
+        const sorted = [...filtered].sort((a, b) => b.score - a.score).slice(0, 24);
         
-        container.innerHTML = filtered.sort((a,b) => b.vp.isBreakout - a.vp.isBreakout || a.slope - b.slope).map(res => `
-            <div class="p-4 bg-zinc-900 rounded-lg ${res.vp.isBreakout ? 'vp-break-card' : 'gold-border'}">
-                <div class="flex justify-between items-start mb-2">
-                    <span class="text-xl font-black text-white">${res.symbol.replace('USDT','')}</span>
-                    <span class="text-[9px] text-zinc-500 font-bold">OI: ${res.oi}</span>
+        container.innerHTML = sorted.map(res => `
+            <div class="p-4 bg-zinc-900 rounded-lg ${res.score >= 70 ? 'vp-break-card' : 'gold-border'}">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-lg font-black text-white">${res.symbol.replace('USDT','')}</span>
+                    <span class="text-[10px] bg-black px-2 py-0.5 rounded text-yellow-500">SCORE: ${res.score}</span>
                 </div>
-                <div class="space-y-1 text-[10px]">
-                    <div class="flex justify-between"><span>當前價格</span><span class="text-white font-mono">${res.price}</span></div>
-                    <div class="flex justify-between"><span>資費斜率</span><span class="${res.slope < -50 ? 'text-red-500' : 'text-zinc-400'} font-bold">${res.slope.toFixed(2)}%</span></div>
-                    <div class="flex justify-between"><span>POC 壓力</span><span class="text-yellow-600">${res.vp.pocH.toFixed(4)}</span></div>
-                    <div class="mt-2 pt-2 border-t border-zinc-800 flex justify-between">
-                        <span class="text-zinc-500 italic">動態止損建議</span>
-                        <span class="text-green-500 font-bold">${res.stopLoss}</span>
-                    </div>
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] text-zinc-400">
+                    <span>價格: <b class="text-zinc-200">${res.price}</b></span>
+                    <span>MA纏繞: <b class="${res.maGap < 1 ? 'text-green-400' : ''}">${res.maGap.toFixed(2)}%</b></span>
+                    <span>資費斜率: <b class="${res.slope < -10 ? 'text-red-400' : ''}">${res.slope.toFixed(1)}%</b></span>
+                    <span>POC頂: <b class="text-yellow-600">${res.vp.pocH.toFixed(4)}</b></span>
+                </div>
+                <div class="mt-3 flex gap-1">
+                    ${res.vp.isBreakout ? '<span class="text-[8px] bg-purple-900 text-purple-200 px-1">VP_BREAK</span>' : ''}
+                    ${res.maGap < 1 ? '<span class="text-[8px] bg-blue-900 text-blue-200 px-1">MA_SQZ</span>' : ''}
                 </div>
             </div>
         `).join('');
@@ -176,20 +182,22 @@
 
     async function toggleSystem() {
         if(!isRunning) {
-            addLog("正在抓取幣安永續合約清單...");
-            try {
-                const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
-                const data = await res.json();
-                allSymbols = data.symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING').map(s => s.symbol);
-                isRunning = true;
-                document.getElementById('mainBtn').innerText = "STOP RADAR";
-                document.getElementById('mainBtn').className = "bg-red-900 text-white px-6 py-2 font-bold rounded text-xs";
-                document.getElementById('systemStatus').innerText = `RADAR ACTIVE: ${allSymbols.length} PAIRS`;
-                loop();
-            } catch(e) { addLog("初始化失敗，請檢查網路"); }
+            addLog("正在初始化全市場清單...");
+            const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
+            const data = await res.json();
+            allSymbols = data.symbols
+                .filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING')
+                .map(s => s.symbol)
+                .filter(s => !EXCLUDE.includes(s));
+            
+            isRunning = true;
+            document.getElementById('mainBtn').innerText = "STOP RADAR";
+            document.getElementById('mainBtn').className = "bg-red-900 text-white px-6 py-2 font-bold rounded text-xs";
+            document.getElementById('systemStatus').innerText = `RADAR ACTIVE: ${allSymbols.length} PAIRS`;
+            loop();
         } else {
             isRunning = false;
-            document.getElementById('mainBtn').innerText = "START RADAR";
+            document.getElementById('mainBtn').innerText = "LAUNCH RADAR";
             document.getElementById('mainBtn').className = "bg-yellow-600 text-black px-6 py-2 font-bold rounded text-xs";
             document.getElementById('systemStatus').innerText = "RADAR IDLE";
             clearTimeout(timer);

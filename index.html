@@ -1,0 +1,39 @@
+// --- 籌碼密集區突破偵測 (Volume Profile Breakout) ---
+function checkVolumeProfileBreakout(klines, currentPrice) {
+    // 1. 找到最高點作為起始 (噴發高點)
+    let highIdx = 0;
+    let maxHigh = 0;
+    klines.forEach((k, i) => {
+        if (parseFloat(k[2]) > maxHigh) {
+            maxHigh = parseFloat(k[2]);
+            highIdx = i;
+        }
+    });
+
+    const rangeKlines = klines.slice(highIdx); // 從高點到現在的 K 線
+    if (rangeKlines.length < 5) return { isBreakout: false, poc: 0 };
+
+    // 2. 建立價格分箱 (Bins)
+    const lows = rangeKlines.map(k => parseFloat(k[3]));
+    const highs = rangeKlines.map(k => parseFloat(k[2]));
+    const minP = Math.min(...lows);
+    const maxP = Math.max(...highs);
+    const binSize = (maxP - minP) / 20; // 將區間切成 20 等份
+    const bins = new Array(20).fill(0);
+
+    rangeKlines.forEach(k => {
+        const vol = parseFloat(k[5]); // 使用成交量
+        const avgP = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
+        const binIdx = Math.min(19, Math.floor((avgP - minP) / binSize));
+        bins[binIdx] += vol;
+    });
+
+    // 3. 找出最大成交量區間 (POC)
+    const maxVolBinIdx = bins.indexOf(Math.max(...bins));
+    const pocPrice = minP + (maxVolBinIdx * binSize);
+    const pocHigh = pocPrice + binSize; // 密集區頂部
+
+    // 4. 判斷是否突破密集區且有量
+    const isBreakout = currentPrice > pocHigh;
+    return { isBreakout, pocHigh };
+}

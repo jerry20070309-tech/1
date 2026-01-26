@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SNIPER V3.6.7 | OI 數值監控版</title>
+    <title>SNIPER V3.6.8 | 籌碼突破 + OI 監控</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #000; color: #FFD700; font-family: 'Courier New', monospace; }
@@ -10,6 +10,7 @@
         .alert-card { border: 2px solid #ffa500; box-shadow: 0 0 10px #ffa500; }
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .pinned-card { border: 2px solid #00ffff; box-shadow: 0 0 15px #00ffff; }
+        .vp-break-card { border: 2px solid #a855f7; box-shadow: 0 0 20px #a855f7; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         .filter-on { background-color: #064e3b; color: #34d399; border-color: #059669; }
     </style>
@@ -18,14 +19,14 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.7</h1>
+            <h1 class="text-2xl font-black text-yellow-500 tracking-tighter">⚡ SNIPER V3.6.8</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded-lg border border-zinc-700 text-white">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24">
                 <button onclick="manualAdd()" class="text-[10px] bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
         <div class="flex gap-2">
-            <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600 transition-all">📈 僅看「前5K」上漲</button>
+            <button id="upFilterBtn" onclick="toggleUpFilter()" class="text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">📈 僅看「前5K」上漲</button>
             <button onclick="testPush()" class="text-[10px] bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-400">🧪 測試推播</button>
             <button onclick="toggleSystem()" id="mainBtn" class="text-[10px] bg-zinc-700 px-4 py-1 rounded text-white font-bold">START</button>
         </div>
@@ -68,7 +69,7 @@
 
     let PARAMS = { ENTRY_SLOPE: -0.15, PRE_MOM: 0.008, PRE_SLOPE: -0.25, HUNT_MOM: 0.02, HUNT_SLOPE: -0.4 };
     let pinnedCoins = [], pinnedFast = [], coinHistory = {}, baseOI = {}, lastPushTime = {}, oiHistory = {}; 
-    let priceSnapshots = {}; 
+    let priceSnapshots = {}, vpResults = {}; 
     let cooldownList = {}, isRunning = false, timer = null, isUpOnly = false, lastSnapMin = -1;
 
     function updateRangeText() {
@@ -94,6 +95,35 @@
         try {
             await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params });
         } catch(e) { console.error("Push Error", e); }
+    }
+
+    // 籌碼密集區偵測邏輯 - 完全保留您的截圖邏輯
+    function checkVolumeProfileBreakout(klines, currentPrice) {
+        let maxHigh = 0, highIdx = 0;
+        klines.forEach((k, i) => {
+            let h = parseFloat(k[2]);
+            if (h > maxHigh) { maxHigh = h; highIdx = i; }
+        });
+        const rangeKlines = klines.slice(highIdx);
+        if (rangeKlines.length < 5) return { isBreakout: false, pocHigh: 0 };
+
+        const lows = rangeKlines.map(k => parseFloat(k[3]));
+        const highs = rangeKlines.map(k => parseFloat(k[2]));
+        const minP = Math.min(...lows), maxP = Math.max(...highs);
+        const binSize = (maxP - minP) / 20;
+        const bins = new Array(20).fill(0);
+
+        rangeKlines.forEach(k => {
+            const vol = parseFloat(k[5]);
+            const avgP = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
+            const idx = Math.min(19, Math.floor((avgP - minP) / binSize));
+            bins[idx] += vol;
+        });
+
+        const maxVolIdx = bins.indexOf(Math.max(...bins));
+        const pocPrice = minP + (maxVolIdx * binSize);
+        const pocHigh = pocPrice + binSize; 
+        return { isBreakout: currentPrice > pocHigh, pocHigh };
     }
 
     async function updateData() {
@@ -136,15 +166,25 @@
                     }
                 }
             }
+
             for (const s of pinnedCoins) {
                 const currentOI = await getOI(s);
                 if (currentOI) oiHistory[s] = currentOI;
+                
+                // 異步獲取 K 線以供籌碼計算
+                try {
+                    const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
+                    const klines = await kRes.json();
+                    const priceData = allData.find(c => c.symbol === s);
+                    if (priceData) {
+                        vpResults[s] = checkVolumeProfileBreakout(klines, parseFloat(priceData.markPrice));
+                    }
+                } catch(e) {}
             }
             render(allData);
         } catch (e) { console.error(e); }
     }
 
-    // 核心修改處：增加 OI 具體數值顯示
     function render(allData = []) {
         const container = document.getElementById('dashboard');
         container.innerHTML = '';
@@ -158,25 +198,22 @@
             const currentOI = oiHistory[s] || 0;
             const growth = baseOI[s] ? (currentOI - baseOI[s]) / baseOI[s] : 0;
             const isPinned = pinnedFast.includes(s);
+            const vp = vpResults[s] || { isBreakout: false };
             
             let level = 0;
             if (slope <= PARAMS.HUNT_SLOPE && growth >= PARAMS.HUNT_MOM) level = 2;
             else if (slope <= PARAMS.PRE_SLOPE && growth >= PARAMS.PRE_MOM) level = 1;
 
-            if (level > 0) {
-                const pushKey = `${s}_${level}`;
-                if (!lastPushTime[pushKey] || (Date.now() - lastPushTime[pushKey] > 900000)) {
-                    sendPush(level === 2 ? `🔥 獵殺: ${s.replace('USDT','')}` : `📡 預警: ${s.replace('USDT','')}`, `MOM: +${(growth*100).toFixed(1)}%\nSLP: ${(slope*100).toFixed(1)}%`, level === 2 ? 1 : 0);
-                    addLog(s, slope, growth, level);
-                    lastPushTime[pushKey] = Date.now();
-                }
+            if ((level > 0 || vp.isBreakout) && (!lastPushTime[s] || Date.now() - lastPushTime[s] > 900000)) {
+                sendPush(level === 2 ? `🔥 獵殺: ${s}` : `📡 預警: ${s}`, `MOM: +${(growth*100).toFixed(1)}%\nVP突破: ${vp.isBreakout?'YES':'NO'}`, level === 2 ? 1 : 0);
+                lastPushTime[s] = Date.now();
             }
 
-            // 格式化 OI 數值顯示 (例如 1.2M)
             const formattedOI = currentOI > 1000000 ? (currentOI / 1000000).toFixed(2) + 'M' : (currentOI / 1000).toFixed(1) + 'K';
 
             const card = document.createElement('div');
-            card.className = `p-4 bg-zinc-900 rounded ${isPinned ? 'pinned-card' : (level===2?'hunt-card':(level===1?'alert-card':'gold-border'))}`;
+            // 如果籌碼突破，給予紫色邊框
+            card.className = `p-4 bg-zinc-900 rounded ${vp.isBreakout ? 'vp-break-card' : (isPinned ? 'pinned-card' : (level===2?'hunt-card':(level===1?'alert-card':'gold-border')))}`;
             card.innerHTML = `
                 <div class="flex justify-between items-center text-[9px] mb-2 font-bold uppercase">
                     <span class="${snap.isUp ? 'text-green-400' : 'text-red-500'}">PRE-5K: ${snap.isUp ? '📈 UP' : '📉 DOWN'}</span>
@@ -198,7 +235,7 @@
                 </div>
                 <div class="mt-2 text-[9px] text-zinc-600 flex justify-between italic pt-2 border-t border-zinc-800">
                     <span>MOM: +${(growth*100).toFixed(1)}%</span>
-                    <span>SLP: ${(slope*100).toFixed(1)}%</span>
+                    <span>VP: ${vp.isBreakout ? '🚀 突破' : '☁️ 密集'}</span>
                 </div>
             `;
             container.appendChild(card);
@@ -213,9 +250,9 @@
         timer = setTimeout(runLoop, nextInterval);
     }
 
+    async function getOI(symbol) { try { const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`); const data = await res.json(); return parseFloat(data.openInterest); } catch(e) { return null; } }
     function toggleUpFilter() { isUpOnly = !isUpOnly; document.getElementById('upFilterBtn').className = isUpOnly ? "text-[10px] filter-on px-3 py-1 rounded font-bold border" : "text-[10px] bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border"; render(); }
     function toggleSystem() { isRunning = !isRunning; const btn = document.getElementById('mainBtn'); if (isRunning) { btn.innerText = "STOP"; btn.className = "bg-red-900 px-4 py-1 rounded text-white font-bold"; runLoop(); } else { btn.innerText = "START"; btn.className = "bg-zinc-700 px-4 py-1 rounded text-white font-bold"; document.getElementById('timerDisplay').innerText = "OFFLINE"; clearTimeout(timer); } }
-    async function getOI(symbol) { try { const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`); const data = await res.json(); return parseFloat(data.openInterest); } catch(e) { return null; } }
     function togglePin(s) { if (pinnedFast.includes(s)) pinnedFast = pinnedFast.filter(c => c !== s); else pinnedFast.push(s); render(); }
     function removeCoin(s) { cooldownList[s] = Date.now(); pinnedCoins = pinnedCoins.filter(c => c !== s); pinnedFast = pinnedFast.filter(c => c !== s); render(); }
     async function manualAdd() {
@@ -224,14 +261,7 @@
         if (!s) return; if (!s.endsWith('USDT')) s += 'USDT';
         if (!pinnedCoins.includes(s)) { pinnedCoins.unshift(s); baseOI[s] = await getOI(s); input.value = ''; render(); }
     }
-    function testPush() { sendPush("Sniper V3.6.7 終極測試", "Token 全字串校準成功！", 1); alert("測試中..."); }
-    function addLog(s, slope, growth, level) {
-        const container = document.getElementById('logContainer');
-        const entry = document.createElement('div');
-        entry.className = `p-2 bg-zinc-900 border-l-4 ${level===2?'border-red-600':'border-orange-500'} text-[10px] mb-1`;
-        entry.innerHTML = `<b>${level===2?'🔥':'📡'} ${s}</b> MOM:+${(growth*100).toFixed(1)}% <span class="float-right text-zinc-500">${new Date().toLocaleTimeString()}</span>`;
-        container.prepend(entry);
-    }
+    function testPush() { sendPush("Sniper V3.6.8 測試", "連結成功！", 1); alert("測試推播已發送..."); }
 </script>
 </body>
 </html>

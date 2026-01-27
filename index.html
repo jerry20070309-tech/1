@@ -1,19 +1,14 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>⚡ SNIPER V8.1.2 - BATCH SYNC</title>
+    <title>⚡ SNIPER V8.1.3 - PACKET ONLY</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #0f0; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; position: relative; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; }
         .card:hover { border-color: #3b82f6; background: #0d0d0d; }
-        .poc-break { border-left: 4px solid #22c55e !important; }
-        .ma-squeeze { border-right: 4px solid #eab308 !important; }
         .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
-        .tag { font-size: 8px; padding: 1px 3px; font-weight: 900; border-radius: 2px; text-transform: uppercase; }
-        @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .surge-pulse { animation: pulse-red 1s infinite; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #222; }
     </style>
@@ -22,43 +17,27 @@
     <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <div class="bg-zinc-900/50 p-4 rounded-xl mb-3 border border-white/5">
             <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">⚡ Sniper V8.1.2 <span class="text-zinc-600 text-[10px] not-italic">Batch Precision</span></h1>
+                <h1 class="text-xl font-black text-blue-500 italic uppercase">⚡ Sniper V8.1.3 <span class="text-zinc-600 text-[10px] not-italic">Packet Sync</span></h1>
                 <div class="flex gap-2">
                     <input type="text" id="searchInput" placeholder="SEARCH..." class="bg-black border border-zinc-800 px-3 py-1 rounded text-blue-400 outline-none w-28 uppercase">
                     <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-4 py-1 rounded font-black uppercase hover:bg-blue-500 transition">Start Radar</button>
                 </div>
             </div>
-            <div class="grid grid-cols-4 gap-4 uppercase font-bold">
-                <div class="space-y-1">
-                    <div class="flex justify-between text-red-500"><span>📉 Slope</span><span id="v_slp">-15%</span></div>
-                    <input type="range" id="i_slp" min="-100" max="0" value="-15" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-yellow-500"><span>💯 Vacuum</span><span id="v_drv">90</span></div>
-                    <input type="range" id="i_drv" min="0" max="100" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-green-500"><span>🎯 POC Gap</span><span id="v_poc">0.5%</span></div>
-                    <input type="range" id="i_poc" min="0" max="50" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-orange-400"><span>🌀 MA SQZ</span><span id="v_sqz">1.2%</span></div>
-                    <input type="range" id="i_sqz" min="0" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
+            <div class="grid grid-cols-2 gap-4 uppercase font-bold text-zinc-500">
+                <p>當前模式：極簡封包同步 (每 3 秒僅 3 個全市場請求，不抓單幣 K 線)</p>
             </div>
         </div>
         <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto pr-1"></div>
     </div>
 
     <div class="w-64 bg-black border-l border-zinc-900 p-3 flex flex-col">
-        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1 uppercase">3S Sync Engine</div>
+        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1 uppercase">Packet Engine</div>
         <div id="logs" class="flex-1 overflow-y-auto space-y-1 font-mono text-[9px]"></div>
     </div>
 
 <script>
-    let stats = {}, pinned = new Set(), isRunning = false, symbols = [];
+    let stats = {}, pinned = new Set(), isRunning = false;
     const EXCLUDE = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT'];
-    let FILTER = { SLP: -0.15, DRV: 90, POC: 0.005, SQZ: 0.012 };
 
     function addLog(msg, color="text-zinc-500") {
         const div = document.createElement('div');
@@ -67,126 +46,39 @@
         document.getElementById('logs').prepend(div);
     }
 
-    function calcMA(data, period) {
-        if (data.length < period) return 0;
-        return data.slice(-period).reduce((a, b) => a + b, 0) / period;
-    }
-
-    function calculateScore(d) {
-        if (d < 1000) return Math.round((d / 1000) * 20);
-        if (d < 5000) return Math.round(20 + ((d - 1000) / 4000) * 40);
-        if (d < 15000) return Math.round(60 + ((d - 5000) / 10000) * 30);
-        return Math.round(90 + Math.min(10, (d - 15000) / 5000));
-    }
-
-    function calcPOC(klines) {
-        let minP = Math.min(...klines.map(k => parseFloat(k[3])));
-        let maxP = Math.max(...klines.map(k => parseFloat(k[2])));
-        let bins = new Array(20).fill(0);
-        klines.forEach(k => {
-            let p = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
-            let v = parseFloat(k[5]);
-            let idx = Math.floor(((p - minP) / (maxP - minP || 1)) * 19);
-            bins[idx] += v;
-        });
-        return minP + (bins.indexOf(Math.max(...bins)) * ((maxP - minP) / 20));
-    }
-
-    // --- 修改：深層數據現在只處理單幣運算，不處理 fetch 以外的邏輯 ---
-    async function fetchDeepData(s, globalData) {
-        try {
-            const g = globalData[s];
-            if (!g || g.spread > 0.0015 || g.v24h < 10000000) return null;
-
-            const [kRes, oRes] = await Promise.all([
-                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
-                fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`)
-            ]);
-            
-            const [k, o] = await Promise.all([kRes.json(), oRes.json()]);
-
-            const prices = k.map(x => parseFloat(x[4]));
-            const lastP = prices[prices.length-1];
-            const vNow = parseFloat(k[k.length-1][5]);
-            const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
-
-            const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
-            const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
-            const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
-            const drvScore = calculateScore(drvRaw);
-
-            const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
-            const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
-
-            const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
-            const poc = calcPOC(k.slice(peakIdx));
-            const avgRange = k.slice(peakIdx).reduce((sum, curr) => sum + (parseFloat(curr[2]) - parseFloat(curr[3])), 0) / (k.length - peakIdx);
-
-            if (!stats[s]) stats[s] = { oiHist: [], highPrice: lastP };
-            stats[s].highPrice = Math.max(stats[s].highPrice, lastP);
-            
-            const currentOI = parseFloat(o.openInterest);
-            stats[s].oiHist.push(currentOI);
-            if (stats[s].oiHist.length > 10) stats[s].oiHist.shift();
-            const isOiSurge = (currentOI - (stats[s].oiHist[0]||currentOI)) / (stats[s].oiHist[0]||1) > 0.05;
-
-            let totalScore = 0;
-            const isPocBrk = lastP > poc && vNow > vAvg * 1.5;
-            if (isPocBrk) totalScore += 100;
-            if (maSqz < FILTER.SQZ) totalScore += ((FILTER.SQZ - maSqz) / FILTER.SQZ) * 80;
-            totalScore += drvScore;
-            if (isOiSurge) totalScore += 50;
-
-            stats[s].lastV = vNow;
-            return { s, price: lastP, poc, drvScore, totalScore, maSqz, oi: currentOI, isOiSurge, isPocBrk, isSqz: maSqz < FILTER.SQZ, tsl: lastP - (avgRange * 1.5), ttp: stats[s].highPrice - (avgRange * 1.2) };
-        } catch(e) { return null; }
-    }
-
     function render() {
         const list = document.getElementById('list');
         const keyword = document.getElementById('searchInput').value.toUpperCase();
         const results = Object.values(stats).filter(x => x.s && x.s.includes(keyword));
         list.innerHTML = results
-            .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.totalScore - a.totalScore))
+            .sort((a,b) => (pinned.has(b.s) - pinned.has(a.has)) || (b.v24h - a.v24h))
             .slice(0, 24)
             .map(x => `
-                <div class="card p-3 rounded-lg ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
-                    <div class="flex justify-between items-start mb-2">
+                <div class="card p-3 rounded-lg ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div class="text-white font-black text-xs">${x.s.replace('USDT','')} <span class="text-blue-500 ml-1">#${Math.round(x.totalScore)}</span></div>
-                            <div class="text-[9px] text-zinc-400 font-bold">$${x.price.toFixed(x.price < 1 ? 6 : 4)}</div>
+                            <div class="text-white font-black text-xs">${x.s.replace('USDT','')}</div>
+                            <div class="text-[9px] text-zinc-400">$${x.price.toFixed(4)}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-yellow-500 font-black text-[9px]">DRV: ${x.drvScore}</div>
-                            <div class="text-zinc-500 text-[8px]">OI: ${(x.oi/1e6).toFixed(2)}M</div>
+                            <div class="${x.change >= 0 ? 'text-green-500' : 'text-red-500'} font-black text-[10px]">${x.change.toFixed(2)}%</div>
+                            <div class="text-zinc-500 text-[8px]">VOL: ${(x.v24h/1e6).toFixed(2)}M</div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-1 mb-2 text-[8px] font-bold text-zinc-300">
-                        <div class="bg-zinc-900 p-1.5 rounded border border-white/5">POC: ${x.poc.toFixed(4)}</div>
-                        <div class="bg-zinc-900 p-1.5 rounded border border-white/5">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
-                    </div>
-                    <div class="flex flex-wrap gap-1 mb-2">
-                        ${x.isPocBrk ? '<span class="tag bg-green-600 text-black">POC_BRK</span>' : ''}
-                        ${x.isSqz ? '<span class="tag bg-orange-500 text-black">MA_SQZ</span>' : ''}
-                        ${x.isOiSurge ? '<span class="tag bg-red-600 text-white surge-pulse">OI_SURGE</span>' : ''}
-                    </div>
-                    <div class="pt-2 border-t border-zinc-800 flex justify-between text-[8px] font-black uppercase">
-                        <div class="text-red-500/80">TSL: ${x.tsl.toFixed(4)}</div>
-                        <div class="text-green-500/80">TTP: ${x.ttp.toFixed(4)}</div>
+                    <div class="mt-2 text-[8px] text-zinc-500">
+                        SPREAD: ${(x.spread * 100).toFixed(3)}%
                     </div>
                 </div>
             `).join('');
     }
 
-    // --- 核心改動：精確的 3 秒 Batch 掃描引擎 ---
     async function scan() {
         if(!isRunning) return;
-        if(window.scanTimer) clearTimeout(window.scanTimer); // 防止併發重複
+        if(window.scanTimer) clearTimeout(window.scanTimer);
         
         const startTime = Date.now();
-
         try {
-            // 1. 同步大封包 (一分鐘最多 20 次，極度安全)
+            // 【核心修正】只抓這三個全市場大封包，不再有任何單幣 fetch
             const [pRes, tRes, bRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/premiumIndex'),
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
@@ -194,64 +86,49 @@
             ]);
             const [premiums, tickers, books] = await Promise.all([pRes.json(), tRes.json(), bRes.json()]);
 
-            const globalData = {};
-            premiums.forEach(i => globalData[i.symbol] = { price: parseFloat(i.markPrice) });
-            tickers.forEach(i => globalData[i.symbol] = { ...globalData[i.symbol], v24h: parseFloat(i.quoteVolume) });
-            books.forEach(i => {
-                const spread = (parseFloat(i.askPrice) - parseFloat(i.bidPrice)) / parseFloat(i.bidPrice);
-                globalData[i.symbol] = { ...globalData[i.symbol], spread };
+            const newStats = {};
+            // 處理價格與資金費率
+            premiums.forEach(i => {
+                if (EXCLUDE.includes(i.symbol) || !i.symbol.endsWith('USDT')) return;
+                newStats[i.symbol] = { s: i.symbol, price: parseFloat(i.markPrice) };
             });
 
-            // 2. 選取 20 個幣進行深層計算 (控制在 Network 中只出現一叢請求)
-            const batch = symbols.slice(0, 20);
-            symbols = [...symbols.slice(20), ...batch];
-            
-            await Promise.all(batch.map(async (s) => {
-                const data = await fetchDeepData(s, globalData);
-                if(data) stats[s] = data;
-            }));
+            // 處理 24h 成交量與漲跌
+            tickers.forEach(i => {
+                if (newStats[i.symbol]) {
+                    newStats[i.symbol].v24h = parseFloat(i.quoteVolume);
+                    newStats[i.symbol].change = parseFloat(i.priceChangePercent);
+                }
+            });
 
+            // 處理買賣價差 (2k 防護核心)
+            books.forEach(i => {
+                if (newStats[i.symbol]) {
+                    const spread = (parseFloat(i.askPrice) - parseFloat(i.bidPrice)) / parseFloat(i.bidPrice);
+                    newStats[i.symbol].spread = spread;
+                }
+            });
+
+            stats = newStats;
             render();
+            addLog(`Packet Sync Success: 3 Requests`, "text-green-500");
 
         } catch (e) {
-            addLog(`SYNC ERROR: ${e.message}`, "text-red-500");
+            addLog(`Sync Error: ${e.message}`, "text-red-500");
         }
 
-        // 3. 計算延遲，嚴格對齊 3000ms 節奏
         const elapsed = Date.now() - startTime;
-        const nextDelay = Math.max(100, 3000 - elapsed);
-        
-        addLog(`PULSE: ${elapsed}ms | NEXT: ${nextDelay}ms`, "text-zinc-600");
-        window.scanTimer = setTimeout(scan, nextDelay);
+        window.scanTimer = setTimeout(scan, Math.max(100, 3000 - elapsed));
     }
 
     async function toggleSystem() {
-        if(isRunning) { 
-            isRunning = false; 
-            clearTimeout(window.scanTimer);
-            document.getElementById('sysBtn').innerText = "Start Radar"; 
-            return; 
-        }
-        addLog("Precision Batch Engine Active...", "text-blue-500 font-bold");
-        const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
-        const data = await res.json();
-        symbols = data.symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING').map(s => s.symbol).filter(s => !EXCLUDE.includes(s));
+        if(isRunning) { isRunning = false; clearTimeout(window.scanTimer); document.getElementById('sysBtn').innerText = "Start Radar"; return; }
         isRunning = true;
         document.getElementById('sysBtn').innerText = "Stop Radar";
         scan();
     }
 
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
-
-    const bind = (id, vid, key, div) => {
-        document.getElementById(id).oninput = (e) => {
-            const v = parseFloat(e.target.value);
-            FILTER[key] = v / div;
-            document.getElementById(vid).innerText = (key==='DRV'?v:v+'%');
-        }
-    };
-    bind('i_slp', 'v_slp', 'SLP', 100); bind('i_drv', 'v_drv', 'DRV', 1);
-    bind('i_poc', 'v_poc', 'POC', 1000); bind('i_sqz', 'v_sqz', 'SQZ', 1000);
 </script>
 </body>
 </html>

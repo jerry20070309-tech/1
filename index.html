@@ -1,54 +1,233 @@
-async function fetchData(s) {
-    try {
-        const [kRes, fRes, oRes, tRes] = await Promise.all([
-            fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
-            fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
-            fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`),
-            fetch(`https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=${s}`) 
-        ]);
-        const k = await kRes.json(), f = await fRes.json(), o = await oRes.json(), t = await tRes.json();
+<!DOCTYPE html>
+<html>
+<head>
+    <title>⚡ SNIPER V7.9.5 - TOTAL CONVERGENCE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
+        body { background: #050505; color: #0f0; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; position: relative; }
+        .card:hover { border-color: #3b82f6; background: #0d0d0d; }
+        .poc-break { border-left: 4px solid #22c55e !important; }
+        .ma-squeeze { border-right: 4px solid #eab308 !important; }
+        .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
+        .tag { font-size: 8px; padding: 1px 3px; font-weight: 900; border-radius: 2px; text-transform: uppercase; }
+        @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .surge-pulse { animation: pulse-red 1s infinite; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #222; }
+    </style>
+</head>
+<body class="flex h-screen text-[10px]">
+    <div class="flex-1 flex flex-col p-3 overflow-hidden">
+        <div class="bg-zinc-900/50 p-4 rounded-xl mb-3 border border-white/5">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">⚡ Sniper V7.9.5 <span class="text-zinc-600 text-[10px] not-italic">Full Logic</span></h1>
+                <div class="flex gap-2">
+                    <input type="text" id="searchInput" placeholder="SEARCH..." class="bg-black border border-zinc-800 px-3 py-1 rounded text-blue-400 outline-none w-28 uppercase">
+                    <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-4 py-1 rounded font-black uppercase hover:bg-blue-500 transition">Start Radar</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-4 uppercase font-bold">
+                <div class="space-y-1">
+                    <div class="flex justify-between text-red-500"><span>📉 Slope</span><span id="v_slp">-15%</span></div>
+                    <input type="range" id="i_slp" min="-100" max="0" value="-15" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-yellow-500"><span>💯 Vacuum</span><span id="v_drv">90</span></div>
+                    <input type="range" id="i_drv" min="0" max="100" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-green-500"><span>🎯 POC Gap</span><span id="v_poc">0.5%</span></div>
+                    <input type="range" id="i_poc" min="0" max="50" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-orange-400"><span>🌀 MA SQZ</span><span id="v_sqz">1.2%</span></div>
+                    <input type="range" id="i_sqz" min="0" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                </div>
+            </div>
+        </div>
+        <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto pr-1"></div>
+    </div>
 
-        // 【訂單簿篩選條件：升級為 2k 級別】
-        const bid = parseFloat(t.bidPrice);
-        const ask = parseFloat(t.askPrice);
-        const spread = (ask - bid) / bid;
+    <div class="w-64 bg-black border-l border-zinc-900 p-3 flex flex-col">
+        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1 uppercase">Live Intelligence</div>
+        <div id="logs" class="flex-1 overflow-y-auto space-y-1 font-mono text-[9px]"></div>
+    </div>
+
+<script>
+    let stats = {}, pinned = new Set(), isRunning = false, symbols = [];
+    const EXCLUDE = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT'];
+    let FILTER = { SLP: -0.15, DRV: 90, POC: 0.005, SQZ: 0.012 };
+
+    function addLog(msg, color="text-zinc-500") {
+        const div = document.createElement('div');
+        div.className = `border-l border-zinc-800 pl-2 ${color}`;
+        div.innerHTML = `[${new Date().toLocaleTimeString('zh-TW', {hour12:false})}] ${msg}`;
+        document.getElementById('logs').prepend(div);
+    }
+
+    function calcMA(data, period) {
+        if (data.length < period) return 0;
+        return data.slice(-period).reduce((a, b) => a + b, 0) / period;
+    }
+
+    function calculateScore(d) {
+        if (d < 1000) return Math.round((d / 1000) * 20);
+        if (d < 5000) return Math.round(20 + ((d - 1000) / 4000) * 40);
+        if (d < 15000) return Math.round(60 + ((d - 5000) / 10000) * 30);
+        return Math.round(90 + Math.min(10, (d - 15000) / 5000));
+    }
+
+    function calcPOC(klines) {
+        let minP = Math.min(...klines.map(k => parseFloat(k[3])));
+        let maxP = Math.max(...klines.map(k => parseFloat(k[2])));
+        let bins = new Array(20).fill(0);
+        klines.forEach(k => {
+            let p = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
+            let v = parseFloat(k[5]);
+            let idx = Math.floor(((p - minP) / (maxP - minP || 1)) * 19);
+            bins[idx] += v;
+        });
+        return minP + (bins.indexOf(Math.max(...bins)) * ((maxP - minP) / 20));
+    }
+
+    async function fetchData(s) {
+        try {
+            const [kRes, fRes, oRes, tRes] = await Promise.all([
+                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
+                fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
+                fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`),
+                fetch(`https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=${s}`)
+            ]);
+            const k = await kRes.json(), f = await fRes.json(), o = await oRes.json(), t = await tRes.json();
+
+            // 1. 【2k 流動性防線】
+            const bid = parseFloat(t.bidPrice), ask = parseFloat(t.askPrice);
+            const spread = (ask - bid) / bid;
+            if (spread > 0.0015) return null;
+            const v24h = k.reduce((a, b) => a + parseFloat(b[5]), 0) * (288 / 100);
+            if (v24h < 10000000) return null;
+
+            // 2. 【數據計算】
+            const prices = k.map(x => parseFloat(x[4]));
+            const lastP = prices[prices.length-1];
+            const vNow = parseFloat(k[k.length-1][5]);
+            const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
+
+            const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
+            const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
+            const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
+            const drvScore = calculateScore(drvRaw);
+
+            const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
+            const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
+
+            // 3. 【Origin 波動起點與動態止損止盈】
+            const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
+            const poc = calcPOC(k.slice(peakIdx));
+            const targetKlines = k.slice(peakIdx);
+            const avgRange = targetKlines.reduce((sum, curr) => sum + (parseFloat(curr[2]) - parseFloat(curr[3])), 0) / targetKlines.length;
+
+            if (!stats[s]) stats[s] = { oiHist: [], highPrice: lastP, frHist: [] };
+            stats[s].highPrice = Math.max(stats[s].highPrice, lastP);
+            const tsl = lastP - (avgRange * 1.5);
+            const ttp = stats[s].highPrice - (avgRange * 1.2);
+
+            // 4. 【OI 燃料監控】
+            const currentOI = parseFloat(o.openInterest);
+            stats[s].oiHist.push(currentOI);
+            if (stats[s].oiHist.length > 10) stats[s].oiHist.shift();
+            const avgOI = stats[s].oiHist.reduce((a,b)=>a+b,0) / stats[s].oiHist.length;
+            const isOiSurge = (currentOI - avgOI) / avgOI > 0.05;
+
+            // 5. 【權重積分系統 (隨表現衰減排序)】
+            let totalScore = 0;
+            const isPocBrk = lastP > poc && vNow > vAvg * 1.5;
+            if (isPocBrk) totalScore += 100;
+            if (maSqz < FILTER.SQZ) totalScore += ((FILTER.SQZ - maSqz) / FILTER.SQZ) * 80;
+            totalScore += drvScore;
+            if (isOiSurge) totalScore += 50;
+
+            stats[s].lastV = vNow;
+            return { s, price: lastP, poc, drvScore, totalScore, maSqz, oi: currentOI, isOiSurge, volR: vNow/vAvg, isPocBrk, isSqz: maSqz < FILTER.SQZ, isSqzOrder: ma7 > ma25, tsl, ttp };
+        } catch(e) { return null; }
+    }
+
+    function render() {
+        const list = document.getElementById('list');
+        const keyword = document.getElementById('searchInput').value.toUpperCase();
+        const results = Object.values(stats).filter(x => x.s && x.s.includes(keyword));
         
-        // 1. 嚴格價差過濾：0.15% (確保買賣掛單極度緊湊，避免 1k~2k 的單子就打穿價格)
-        if (spread > 0.0015) return null; 
+        list.innerHTML = results
+            .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.totalScore - a.totalScore))
+            .slice(0, 24)
+            .map(x => `
+                <div class="card p-3 rounded-lg ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <div class="text-white font-black text-xs">${x.s.replace('USDT','')} <span class="text-blue-500 ml-1">#${Math.round(x.totalScore)}</span></div>
+                            <div class="text-[9px] text-zinc-400 font-bold">$${x.price.toFixed(x.price < 1 ? 6 : 4)}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-yellow-500 font-black text-[9px]">DRV: ${x.drvScore}</div>
+                            <div class="text-zinc-500 text-[8px]">OI: ${(x.oi/1e6).toFixed(2)}M</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 mb-2 text-[8px] font-bold text-zinc-300">
+                        <div class="bg-zinc-900 p-1.5 rounded border border-white/5">POC: ${x.poc.toFixed(4)}</div>
+                        <div class="bg-zinc-900 p-1.5 rounded border border-white/5">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
+                    </div>
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        ${x.isPocBrk ? '<span class="tag bg-green-600 text-black">POC_BRK</span>' : ''}
+                        ${x.isSqz ? '<span class="tag bg-orange-500 text-black">MA_SQZ</span>' : ''}
+                        ${x.isOiSurge ? '<span class="tag bg-red-600 text-white surge-pulse">OI_SURGE</span>' : ''}
+                    </div>
+                    <div class="pt-2 border-t border-zinc-800 flex justify-between text-[8px] font-black uppercase">
+                        <div class="text-red-500/80">TSL: ${x.tsl.toFixed(4)}</div>
+                        <div class="text-green-500/80">TTP: ${x.ttp.toFixed(4)}</div>
+                    </div>
+                </div>
+            `).join('');
+    }
 
-        // 2. 嚴格成交量過濾：24h 成交額必須 > 10,000,000 USDT
-        const v24hEstimate = k.reduce((a, b) => a + parseFloat(b[5]), 0) * (288 / 100);
-        if (v24hEstimate < 10000000) return null;
+    async function scan() {
+        if(!isRunning) return;
+        const batch = symbols.slice(0, 15);
+        symbols = [...symbols.slice(15), ...batch];
+        for(let s of batch) {
+            const data = await fetchData(s);
+            if(data) {
+                stats[s] = data;
+                if(data.totalScore > 180) addLog(`🚀 HIGH CONVERGENCE: ${s}`, "text-blue-400 font-bold");
+            }
+        }
+        render();
+        setTimeout(scan, 1000);
+    }
 
-        // --- 以下原本策略程式碼完全保持不動 ---
-        const prices = k.map(x => parseFloat(x[4]));
-        const lastP = prices[prices.length-1];
-        const vNow = parseFloat(k[k.length-1][5]);
-        const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
-        
-        const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
-        const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
-        const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
+    async function toggleSystem() {
+        if(isRunning) { isRunning = false; document.getElementById('sysBtn').innerText = "Start Radar"; return; }
+        addLog("Loading Global Market Strategy...", "text-blue-500");
+        const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
+        const data = await res.json();
+        symbols = data.symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING').map(s => s.symbol).filter(s => !EXCLUDE.includes(s));
+        isRunning = true;
+        document.getElementById('sysBtn').innerText = "Stop Radar";
+        scan();
+    }
 
-        const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
-        const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
+    function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
 
-        const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
-        const poc = calcPOC(k.slice(peakIdx));
-
-        if(!stats[s]) stats[s] = { frHist: [] };
-        stats[s].frHist.push(parseFloat(f.lastFundingRate));
-        if(stats[s].frHist.length > 20) stats[s].frHist.shift();
-        const slope = (stats[s].frHist[stats[s].frHist.length-1] - stats[s].frHist[0]) / (Math.abs(stats[s].frHist[0]) || 0.0001);
-
-        stats[s].lastV = vNow;
-
-        return {
-            s, price: lastP, poc, slope, drv: drvRaw, 
-            maSqz, oi: parseFloat(o.openInterest), volR: vNow/vAvg,
-            isPocBrk: lastP > poc && vNow > vAvg * 1.5,
-            isSqz: maSqz < FILTER.SQZ,
-            isSqzOrder: ma7 > ma25 && ma25 > ma99
-        };
-    } catch(e) { return null; }
-}
+    const bind = (id, vid, key, div) => {
+        document.getElementById(id).oninput = (e) => {
+            const v = parseFloat(e.target.value);
+            FILTER[key] = v / div;
+            document.getElementById(vid).innerText = v + (key==='DRV'?'':'%');
+        }
+    };
+    bind('i_slp', 'v_slp', 'SLP', 100); bind('i_drv', 'v_drv', 'DRV', 1);
+    bind('i_poc', 'v_poc', 'POC', 1000); bind('i_sqz', 'v_sqz', 'SQZ', 1000);
+</script>
+</body>
+</html>

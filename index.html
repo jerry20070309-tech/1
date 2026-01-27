@@ -1,8 +1,5 @@
-// --- 以下為修改後的 fetchData 區塊，其餘 CSS 與策略邏輯完全保持你提供的代碼 ---
-
 async function fetchData(s) {
     try {
-        // 多抓一個 bookTicker 用於檢查買賣價差 (Spread)
         const [kRes, fRes, oRes, tRes] = await Promise.all([
             fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
             fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
@@ -11,38 +8,34 @@ async function fetchData(s) {
         ]);
         const k = await kRes.json(), f = await fRes.json(), o = await oRes.json(), t = await tRes.json();
 
-        // 【新增篩選條件：訂單簿防線】
+        // 【訂單簿篩選條件：升級為 2k 級別】
         const bid = parseFloat(t.bidPrice);
         const ask = parseFloat(t.askPrice);
         const spread = (ask - bid) / bid;
         
-        // 1. 價差檢查：如果價差大於 0.3%，代表掛單太稀疏 (Orderbook < 1k)，直接排除
-        if (spread > 0.003) return null; 
+        // 1. 嚴格價差過濾：0.15% (確保買賣掛單極度緊湊，避免 1k~2k 的單子就打穿價格)
+        if (spread > 0.0015) return null; 
 
-        // 2. 成交量檢查：利用 K 線粗估 24h 成交額，低於 500萬 USDT 則不顯示
+        // 2. 嚴格成交量過濾：24h 成交額必須 > 10,000,000 USDT
         const v24hEstimate = k.reduce((a, b) => a + parseFloat(b[5]), 0) * (288 / 100);
-        if (v24hEstimate < 5000000) return null;
+        if (v24hEstimate < 10000000) return null;
 
-        // --- 以下為你原本的策略程式碼，完全不動 ---
+        // --- 以下原本策略程式碼完全保持不動 ---
         const prices = k.map(x => parseFloat(x[4]));
         const lastP = prices[prices.length-1];
         const vNow = parseFloat(k[k.length-1][5]);
         const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
         
-        // 1. 真空得分 (DRV)
         const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
         const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
         const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
 
-        // 2. 均線纏繞 (MA SQZ)
         const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
         const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
 
-        // 3. POC 突破
         const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
         const poc = calcPOC(k.slice(peakIdx));
 
-        // 4. 資費斜率
         if(!stats[s]) stats[s] = { frHist: [] };
         stats[s].frHist.push(parseFloat(f.lastFundingRate));
         if(stats[s].frHist.length > 20) stats[s].frHist.shift();

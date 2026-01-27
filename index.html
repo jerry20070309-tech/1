@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>⚡ SNIPER V8.2.2 - MA & POC RESTORED</title>
+    <title>⚡ SNIPER V8.2.3 - PACKET COMPUTE ONLY</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -20,35 +20,34 @@
     <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <div class="bg-zinc-900/50 p-4 rounded-xl mb-3 border border-white/5">
             <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-blue-500 italic uppercase">⚡ Sniper V8.2.2 <span class="text-zinc-600 text-[10px] not-italic">Engine Fixed</span></h1>
+                <h1 class="text-xl font-black text-blue-500 italic uppercase">⚡ Sniper V8.2.3 <span class="text-zinc-600 text-[10px] not-italic">Engine Compute</span></h1>
                 <div class="flex gap-4">
-                    <div id="reqStatus" class="flex gap-2 items-center text-[9px]">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span class="text-zinc-400">NET SAFE: 2 PACKETS/3S</span>
+                    <div class="bg-red-900/20 px-3 py-1 rounded border border-red-500/30 text-red-500 font-bold uppercase">
+                        Network Safe: 2 Requests / 3s
                     </div>
-                    <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-4 py-1 rounded font-black uppercase hover:bg-blue-500 transition">Start Radar</button>
+                    <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black uppercase hover:bg-blue-500 transition">Start Radar</button>
                 </div>
             </div>
             <div class="grid grid-cols-4 gap-4 uppercase font-bold text-zinc-400">
                 <div class="space-y-1">
-                    <div class="flex justify-between text-yellow-500"><span>🌀 MA SQZ (擠壓度)</span><span id="v_sqz">1.2%</span></div>
-                    <input type="range" id="i_sqz" min="1" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                    <div class="flex justify-between text-yellow-500"><span>🌀 MA SQZ (擠壓)</span><span id="v_sqz">1.2%</span></div>
+                    <input type="range" id="i_sqz" min="1" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded">
                 </div>
                 <div class="space-y-1">
                     <div class="flex justify-between text-green-500"><span>🎯 POC GAP (突破)</span><span id="v_poc">0.5%</span></div>
-                    <input type="range" id="i_poc" min="0" max="20" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                    <input type="range" id="i_poc" min="0" max="20" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded">
                 </div>
                 <div class="space-y-1">
-                    <div class="flex justify-between text-red-500"><span>📉 DRV SENSE (真空)</span><span id="v_drv">90</span></div>
-                    <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
+                    <div class="flex justify-between text-red-500"><span>📉 DRV (真空區)</span><span id="v_drv">90</span></div>
+                    <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded">
                 </div>
-                <div class="space-y-1 text-[8px] flex flex-col justify-center">
-                    <p>TSL: -2.0% (移動止損)</p>
-                    <p>TTP: +5.0% (移動止盈)</p>
+                <div class="flex flex-col justify-center text-[8px] bg-black/40 p-2 rounded">
+                    <p class="text-orange-400">TSL (移動止損): -2.0%</p>
+                    <p class="text-orange-400">TTP (移動止盈): +5.0%</p>
                 </div>
             </div>
         </div>
-        <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto pr-1"></div>
+        <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto"></div>
     </div>
 
 <script>
@@ -61,11 +60,12 @@
         const startTime = Date.now();
 
         try {
-            // 嚴格僅發送 2 個大封包
+            // 【解決方案】嚴格限制全市場僅發送這 2 個大封包請求
             const [tRes, bRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
                 fetch('https://fapi.binance.com/fapi/v1/ticker/bookTicker')
             ]);
+            
             const [tickers, books] = await Promise.all([tRes.json(), bRes.json()]);
             const bookMap = {};
             books.forEach(b => bookMap[b.symbol] = b);
@@ -81,19 +81,18 @@
                 const change = parseFloat(t.priceChangePercent);
                 const vol = parseFloat(t.quoteVolume);
 
-                // 1. MA 擠壓計算 (本地運算回歸)
+                // --- 1. MA 擠壓回歸 (本地運算) ---
                 const maSqz = (high - low) / vAvg;
                 const isSqz = maSqz < FILTER.SQZ;
 
-                // 2. POC 突破計算 (本地運算回歸)
-                // 模擬 POC：利用加權平均價與當前價格的偏離
-                const mockPoc = vAvg;
+                // --- 2. POC 突破回歸 (本地運算) ---
+                const mockPoc = vAvg; // 24h 加權均價是最好的 POC 替代
                 const isPocBrk = price > mockPoc * (1 + FILTER.POC);
 
-                // 3. 真空區 DRV 評分 (本地運算回歸)
+                // --- 3. 真空區 DRV 回歸 (本地運算) ---
                 const drvScore = Math.min(100, (Math.abs(change) / (vol / 1e8)) * 15);
 
-                // 4. 訂單簿安全
+                // --- 4. 訂單簿偵測 & 2k 防護 ---
                 const b = bookMap[t.symbol];
                 const spread = b ? (parseFloat(b.askPrice) - parseFloat(b.bidPrice)) / price : 0.01;
 
@@ -107,8 +106,9 @@
 
             stats = newStats;
             render();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Net Error:", e); }
 
+        // 固定 3 秒循環，確保不噴請求
         window.scanTimer = setTimeout(scan, 3000);
     }
 
@@ -126,7 +126,7 @@
                             <div class="text-zinc-500 text-[9px] font-bold">$${x.price.toFixed(4)}</div>
                         </div>
                         <div class="text-right">
-                            <div class="${x.change >= 0 ? 'text-green-500' : 'text-red-500'} font-black">${x.change.toFixed(2)}%</div>
+                            <div class="${x.change >= 0 ? 'text-green-500' : 'text-red-500'} font-black text-[10px]">${x.change.toFixed(2)}%</div>
                             <div class="text-[8px] text-zinc-600">SPR: ${(x.spread*100).toFixed(3)}%</div>
                         </div>
                     </div>
@@ -139,9 +139,9 @@
                         ${x.isSqz ? '<span class="tag bg-orange-500 text-black">MA_SQZ</span>' : ''}
                         ${x.drvScore > FILTER.DRV ? '<span class="tag bg-yellow-500 text-black">Vacuum</span>' : ''}
                     </div>
-                    <div class="mt-2 pt-2 border-t border-zinc-900 flex justify-between text-[8px] text-zinc-500">
-                        <span>L: ${x.tsl.toFixed(3)}</span>
-                        <span>W: ${x.ttp.toFixed(3)}</span>
+                    <div class="mt-2 pt-2 border-t border-zinc-900 flex justify-between text-[8px] text-zinc-500 italic">
+                        <span>SL: ${x.tsl.toFixed(3)}</span>
+                        <span>TP: ${x.ttp.toFixed(3)}</span>
                     </div>
                 </div>
             `).join('');
@@ -154,6 +154,7 @@
     }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
 
+    // 滑塊同步
     const bind = (id, vid, key, div) => {
         document.getElementById(id).oninput = (e) => {
             const v = parseFloat(e.target.value);

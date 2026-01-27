@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>⚡ SNIPER V7.9.5 - TOTAL CONVERGENCE</title>
+    <title>⚡ SNIPER V8.1 - 3S SYNC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -22,7 +22,7 @@
     <div class="flex-1 flex flex-col p-3 overflow-hidden">
         <div class="bg-zinc-900/50 p-4 rounded-xl mb-3 border border-white/5">
             <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">⚡ Sniper V7.9.5 <span class="text-zinc-600 text-[10px] not-italic">Full Logic</span></h1>
+                <h1 class="text-xl font-black text-blue-500 italic uppercase tracking-tighter">⚡ Sniper V8.1 <span class="text-zinc-600 text-[10px] not-italic">3s Precision</span></h1>
                 <div class="flex gap-2">
                     <input type="text" id="searchInput" placeholder="SEARCH..." class="bg-black border border-zinc-800 px-3 py-1 rounded text-blue-400 outline-none w-28 uppercase">
                     <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-4 py-1 rounded font-black uppercase hover:bg-blue-500 transition">Start Radar</button>
@@ -51,7 +51,7 @@
     </div>
 
     <div class="w-64 bg-black border-l border-zinc-900 p-3 flex flex-col">
-        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1 uppercase">Live Intelligence</div>
+        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1 uppercase">3S Sync Engine</div>
         <div id="logs" class="flex-1 overflow-y-auto space-y-1 font-mono text-[9px]"></div>
     </div>
 
@@ -92,24 +92,37 @@
         return minP + (bins.indexOf(Math.max(...bins)) * ((maxP - minP) / 20));
     }
 
-    async function fetchData(s) {
+    async function fetchGlobalMarket() {
         try {
-            const [kRes, fRes, oRes, tRes] = await Promise.all([
-                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
-                fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
-                fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`),
-                fetch(`https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=${s}`)
+            const [pRes, tRes, bRes] = await Promise.all([
+                fetch('https://fapi.binance.com/fapi/v1/premiumIndex'),
+                fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
+                fetch('https://fapi.binance.com/fapi/v1/ticker/bookTicker')
             ]);
-            const k = await kRes.json(), f = await fRes.json(), o = await oRes.json(), t = await tRes.json();
+            const premiums = await pRes.json();
+            const tickers = await tRes.json();
+            const books = await bRes.json();
 
-            // 1. 【2k 流動性防線】
-            const bid = parseFloat(t.bidPrice), ask = parseFloat(t.askPrice);
-            const spread = (ask - bid) / bid;
-            if (spread > 0.0015) return null;
-            const v24h = k.reduce((a, b) => a + parseFloat(b[5]), 0) * (288 / 100);
-            if (v24h < 10000000) return null;
+            const marketMap = {};
+            premiums.forEach(i => marketMap[i.symbol] = { ...marketMap[i.symbol], price: parseFloat(i.markPrice) });
+            tickers.forEach(i => marketMap[i.symbol] = { ...marketMap[i.symbol], v24h: parseFloat(i.quoteVolume) });
+            books.forEach(i => {
+                const spread = (parseFloat(i.askPrice) - parseFloat(i.bidPrice)) / parseFloat(i.bidPrice);
+                marketMap[i.symbol] = { ...marketMap[i.symbol], spread };
+            });
+            return marketMap;
+        } catch (e) { return null; }
+    }
 
-            // 2. 【數據計算】
+    async function fetchDeepData(s, globalData) {
+        try {
+            const g = globalData[s];
+            // 2k 門檻過濾
+            if (!g || g.spread > 0.0015 || g.v24h < 10000000) return null;
+
+            const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`);
+            const k = await kRes.json();
+
             const prices = k.map(x => parseFloat(x[4]));
             const lastP = prices[prices.length-1];
             const vNow = parseFloat(k[k.length-1][5]);
@@ -123,34 +136,31 @@
             const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
             const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
 
-            // 3. 【Origin 波動起點與動態止損止盈】
             const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
             const poc = calcPOC(k.slice(peakIdx));
             const targetKlines = k.slice(peakIdx);
             const avgRange = targetKlines.reduce((sum, curr) => sum + (parseFloat(curr[2]) - parseFloat(curr[3])), 0) / targetKlines.length;
 
-            if (!stats[s]) stats[s] = { oiHist: [], highPrice: lastP, frHist: [] };
+            if (!stats[s]) stats[s] = { oiHist: [], highPrice: lastP };
             stats[s].highPrice = Math.max(stats[s].highPrice, lastP);
             const tsl = lastP - (avgRange * 1.5);
             const ttp = stats[s].highPrice - (avgRange * 1.2);
 
-            // 4. 【OI 燃料監控】
+            const oRes = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`);
+            const o = await oRes.json();
             const currentOI = parseFloat(o.openInterest);
             stats[s].oiHist.push(currentOI);
             if (stats[s].oiHist.length > 10) stats[s].oiHist.shift();
-            const avgOI = stats[s].oiHist.reduce((a,b)=>a+b,0) / stats[s].oiHist.length;
-            const isOiSurge = (currentOI - avgOI) / avgOI > 0.05;
+            const isOiSurge = (currentOI - (stats[s].oiHist[0]||currentOI)) / (stats[s].oiHist[0]||1) > 0.05;
 
-            // 5. 【權重積分系統 (隨表現衰減排序)】
             let totalScore = 0;
-            const isPocBrk = lastP > poc && vNow > vAvg * 1.5;
-            if (isPocBrk) totalScore += 100;
+            if (lastP > poc && vNow > vAvg * 1.5) totalScore += 100;
             if (maSqz < FILTER.SQZ) totalScore += ((FILTER.SQZ - maSqz) / FILTER.SQZ) * 80;
             totalScore += drvScore;
             if (isOiSurge) totalScore += 50;
 
             stats[s].lastV = vNow;
-            return { s, price: lastP, poc, drvScore, totalScore, maSqz, oi: currentOI, isOiSurge, volR: vNow/vAvg, isPocBrk, isSqz: maSqz < FILTER.SQZ, isSqzOrder: ma7 > ma25, tsl, ttp };
+            return { s, price: lastP, poc, drvScore, totalScore, maSqz, oi: currentOI, isOiSurge, isPocBrk: lastP > poc && vNow > vAvg * 1.5, isSqz: maSqz < FILTER.SQZ, tsl, ttp };
         } catch(e) { return null; }
     }
 
@@ -158,7 +168,6 @@
         const list = document.getElementById('list');
         const keyword = document.getElementById('searchInput').value.toUpperCase();
         const results = Object.values(stats).filter(x => x.s && x.s.includes(keyword));
-        
         list.innerHTML = results
             .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.totalScore - a.totalScore))
             .slice(0, 24)
@@ -193,22 +202,32 @@
 
     async function scan() {
         if(!isRunning) return;
-        const batch = symbols.slice(0, 15);
-        symbols = [...symbols.slice(15), ...batch];
-        for(let s of batch) {
-            const data = await fetchData(s);
-            if(data) {
-                stats[s] = data;
-                if(data.totalScore > 180) addLog(`🚀 HIGH CONVERGENCE: ${s}`, "text-blue-400 font-bold");
-            }
+        const startTime = Date.now();
+
+        // 1. 同步全市場封包 (3秒一循環的核心)
+        const globalData = await fetchGlobalMarket();
+        if(globalData) {
+            // 2. 批量處理 30 個幣種
+            const batch = symbols.slice(0, 30);
+            symbols = [...symbols.slice(30), ...batch];
+            
+            await Promise.all(batch.map(async (s) => {
+                const data = await fetchDeepData(s, globalData);
+                if(data) stats[s] = data;
+            }));
+            render();
         }
-        render();
-        setTimeout(scan, 1000);
+
+        // 3. 強制鎖定 3000ms 刷新率
+        const elapsed = Date.now() - startTime;
+        const nextTick = Math.max(0, 3000 - elapsed);
+        setTimeout(scan, nextTick);
+        addLog(`Sync Complete (${elapsed}ms) - Next tick in ${nextTick}ms`, "text-zinc-600");
     }
 
     async function toggleSystem() {
         if(isRunning) { isRunning = false; document.getElementById('sysBtn').innerText = "Start Radar"; return; }
-        addLog("Loading Global Market Strategy...", "text-blue-500");
+        addLog("Precision 3s Engine Active", "text-blue-500 font-bold");
         const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
         const data = await res.json();
         symbols = data.symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING').map(s => s.symbol).filter(s => !EXCLUDE.includes(s));
@@ -223,7 +242,7 @@
         document.getElementById(id).oninput = (e) => {
             const v = parseFloat(e.target.value);
             FILTER[key] = v / div;
-            document.getElementById(vid).innerText = v + (key==='DRV'?'':'%');
+            document.getElementById(vid).innerText = (key==='DRV'?v:v+'%');
         }
     };
     bind('i_slp', 'v_slp', 'SLP', 100); bind('i_drv', 'v_drv', 'DRV', 1);

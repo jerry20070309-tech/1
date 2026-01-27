@@ -1,219 +1,61 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>⚡ SNIPER V7.0 - ULTIMATE</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
-        body { background: #050505; color: #0f0; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; position: relative; transition: 0.2s; cursor: pointer; }
-        .card:hover { border-color: #3b82f6; }
-        .hunt-trigger { border: 2px solid #a855f7 !important; background: #1e1b4b !important; animation: blink 1.2s infinite; }
-        .poc-break { border-left: 4px solid #22c55e !important; }
-        .ma-squeeze { border-right: 4px solid #eab308 !important; }
-        .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
-        @keyframes blink { 0%, 100% { border-color: #a855f7; } 50% { border-color: #3b0764; } }
-        .tag { font-size: 8px; padding: 1px 3px; font-weight: 900; border-radius: 2px; text-transform: uppercase; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #222; }
-    </style>
-</head>
-<body class="flex h-screen text-[10px]">
-    <div class="flex-1 flex flex-col p-3 overflow-hidden">
-        <div class="bg-zinc-900/50 p-4 rounded-xl mb-3 border border-white/5">
-            <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-blue-500 italic">⚡ SNIPER V7.0 <span class="text-[10px] text-zinc-600 not-italic">ULTIMATE</span></h1>
-                <div class="flex gap-2">
-                    <input type="text" id="searchInput" placeholder="SEARCH..." class="bg-black border border-zinc-800 px-3 py-1 rounded text-blue-400 outline-none w-28">
-                    <button onclick="toggleSystem()" id="sysBtn" class="bg-blue-600 text-white px-4 py-1 rounded font-black uppercase">Start Radar</button>
-                </div>
-            </div>
-            <div class="grid grid-cols-4 gap-4 uppercase font-bold">
-                <div class="space-y-1">
-                    <div class="flex justify-between text-red-500"><span>📉 Slope</span><span id="v_slp">-15%</span></div>
-                    <input type="range" id="i_slp" min="-100" max="0" value="-15" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-yellow-500"><span>💯 Vacuum</span><span id="v_drv">90</span></div>
-                    <input type="range" id="i_drv" min="0" max="100" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-green-500"><span>🎯 POC Gap</span><span id="v_poc">0.5%</span></div>
-                    <input type="range" id="i_poc" min="0" max="50" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-                <div class="space-y-1">
-                    <div class="flex justify-between text-orange-400"><span>🌀 MA SQZ</span><span id="v_sqz">1.2%</span></div>
-                    <input type="range" id="i_sqz" min="0" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded cursor-pointer">
-                </div>
-            </div>
-        </div>
-        <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 overflow-y-auto pr-1"></div>
-    </div>
+// --- 以下為修改後的 fetchData 區塊，其餘 CSS 與策略邏輯完全保持你提供的代碼 ---
 
-    <div class="w-64 bg-black border-l border-zinc-900 p-3 flex flex-col">
-        <div class="text-zinc-600 font-black mb-2 border-b border-zinc-800 pb-1">SYSTEM LOGS</div>
-        <div id="logs" class="flex-1 overflow-y-auto space-y-1 font-mono text-[9px]"></div>
-    </div>
+async function fetchData(s) {
+    try {
+        // 多抓一個 bookTicker 用於檢查買賣價差 (Spread)
+        const [kRes, fRes, oRes, tRes] = await Promise.all([
+            fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
+            fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
+            fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`),
+            fetch(`https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=${s}`) 
+        ]);
+        const k = await kRes.json(), f = await fRes.json(), o = await oRes.json(), t = await tRes.json();
 
-<script>
-    let stats = {}, pinned = new Set(), isRunning = false, symbols = [];
-    const EXCLUDE = ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT'];
-    let FILTER = { SLP: -0.15, DRV: 90, POC: 0.005, SQZ: 0.012 };
-
-    function addLog(msg, color="text-zinc-500") {
-        const div = document.createElement('div');
-        div.className = `border-l border-zinc-800 pl-2 ${color}`;
-        div.innerHTML = `[${new Date().toLocaleTimeString('zh-TW', {hour12:false})}] ${msg}`;
-        document.getElementById('logs').prepend(div);
-    }
-
-    // --- 核心演算法 ---
-    function calcMA(data, period) {
-        if (data.length < period) return 0;
-        return data.slice(-period).reduce((a, b) => a + b, 0) / period;
-    }
-
-    function calcPOC(klines) {
-        let minP = Math.min(...klines.map(k => parseFloat(k[3])));
-        let maxP = Math.max(...klines.map(k => parseFloat(k[2])));
-        let bins = new Array(20).fill(0);
-        klines.forEach(k => {
-            let p = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
-            let v = parseFloat(k[5]);
-            let idx = Math.floor(((p - minP) / (maxP - minP || 1)) * 19);
-            bins[idx] += v;
-        });
-        return minP + (bins.indexOf(Math.max(...bins)) * ((maxP - minP) / 20));
-    }
-
-    async function fetchData(s) {
-        try {
-            const [kRes, fRes, oRes] = await Promise.all([
-                fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=5m&limit=100`),
-                fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${s}`),
-                fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`)
-            ]);
-            const k = await kRes.json(), f = await fRes.json(), o = await oRes.json();
-            
-            const prices = k.map(x => parseFloat(x[4]));
-            const lastP = prices[prices.length-1];
-            const vNow = parseFloat(k[k.length-1][5]);
-            const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
-            
-            // 1. 真空得分 (DRV)
-            const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
-            const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
-            const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
-
-            // 2. 均線纏繞 (MA SQZ)
-            const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
-            const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
-
-            // 3. POC 突破
-            const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
-            const poc = calcPOC(k.slice(peakIdx));
-
-            // 4. 資費斜率
-            if(!stats[s]) stats[s] = { frHist: [] };
-            stats[s].frHist.push(parseFloat(f.lastFundingRate));
-            if(stats[s].frHist.length > 20) stats[s].frHist.shift();
-            const slope = (stats[s].frHist[stats[s].frHist.length-1] - stats[s].frHist[0]) / (Math.abs(stats[s].frHist[0]) || 0.0001);
-
-            stats[s].lastV = vNow;
-
-            return {
-                s, price: lastP, poc, slope, drv: drvRaw, 
-                maSqz, oi: parseFloat(o.openInterest), volR: vNow/vAvg,
-                isPocBrk: lastP > poc && vNow > vAvg * 1.5,
-                isSqz: maSqz < FILTER.SQZ,
-                isSqzOrder: ma7 > ma25 && ma25 > ma99
-            };
-        } catch(e) { return null; }
-    }
-
-    async function scan() {
-        if(!isRunning) return;
-        const batch = symbols.slice(0, 10); // 每次掃10個循環
-        symbols = [...symbols.slice(10), ...batch];
-
-        for(let s of batch) {
-            const data = await fetchData(s);
-            if(data) {
-                stats[s] = { ...stats[s], ...data };
-                if(data.isPocBrk && data.isSqz) addLog(`🔥 CONVERGENCE: ${s}`, "text-purple-400 font-bold");
-            }
-        }
-        render();
-        setTimeout(scan, 1500);
-    }
-
-    function render() {
-        const list = document.getElementById('list');
-        const search = document.getElementById('searchInput').value.toUpperCase();
+        // 【新增篩選條件：訂單簿防線】
+        const bid = parseFloat(t.bidPrice);
+        const ask = parseFloat(t.askPrice);
+        const spread = (ask - bid) / bid;
         
-        const results = Object.values(stats).filter(x => x.s && x.s.includes(search));
+        // 1. 價差檢查：如果價差大於 0.3%，代表掛單太稀疏 (Orderbook < 1k)，直接排除
+        if (spread > 0.003) return null; 
+
+        // 2. 成交量檢查：利用 K 線粗估 24h 成交額，低於 500萬 USDT 則不顯示
+        const v24hEstimate = k.reduce((a, b) => a + parseFloat(b[5]), 0) * (288 / 100);
+        if (v24hEstimate < 5000000) return null;
+
+        // --- 以下為你原本的策略程式碼，完全不動 ---
+        const prices = k.map(x => parseFloat(x[4]));
+        const lastP = prices[prices.length-1];
+        const vNow = parseFloat(k[k.length-1][5]);
+        const vAvg = k.slice(-20).reduce((a,b)=>a+parseFloat(b[5]),0)/20;
         
-        list.innerHTML = results
-            .sort((a,b) => (pinned.has(b.s)-pinned.has(a.s)) || (b.isPocBrk && b.isSqz ? 1 : -1))
-            .slice(0, 24)
-            .map(x => `
-                <div class="card p-3 rounded-lg ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-white font-black text-sm">${pinned.has(x.s)?'📌 ':''}${x.s.replace('USDT','')}</div>
-                            <div class="text-[8px] text-zinc-500">SLP: <span class="${x.slope < FILTER.SLP ? 'text-red-500' : ''}">${(x.slope*100).toFixed(1)}%</span></div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-yellow-500 font-black text-[9px]">DRV: ${Math.round(x.drv).toLocaleString()}</div>
-                            <div class="text-white font-bold">$${x.price < 1 ? x.price.toFixed(6) : x.price.toFixed(4)}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-2 grid grid-cols-2 gap-1 text-[8px] font-bold">
-                        <div class="bg-zinc-900 p-1 rounded">POC: ${x.poc.toFixed(4)}</div>
-                        <div class="bg-zinc-900 p-1 rounded">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
-                    </div>
+        // 1. 真空得分 (DRV)
+        const pDelta = Math.abs(lastP - prices[prices.length-2]) / prices[prices.length-2];
+        const vDelta = Math.abs(vNow - (stats[s]?.lastV || vNow));
+        const drvRaw = vDelta > 0 ? (pDelta / vDelta) * 100000000 : 0;
 
-                    <div class="mt-2 flex gap-1">
-                        ${x.isPocBrk ? '<span class="tag bg-green-600 text-black">POC_BRK</span>' : ''}
-                        ${x.isSqz ? '<span class="tag bg-orange-500 text-black">MA_SQZ</span>' : ''}
-                        ${x.isSqzOrder ? '<span class="tag bg-blue-600 text-white">MA_ORD</span>' : ''}
-                        ${x.volR > 2 ? '<span class="tag bg-purple-600 text-white">VOL_PUSH</span>' : ''}
-                    </div>
+        // 2. 均線纏繞 (MA SQZ)
+        const ma7 = calcMA(prices, 7), ma25 = calcMA(prices, 25), ma99 = calcMA(prices, 99);
+        const maSqz = (Math.max(ma7, ma25, ma99) - Math.min(ma7, ma25, ma99)) / Math.min(ma7, ma25, ma99);
 
-                    <div class="mt-2 text-[8px] text-zinc-600 flex justify-between">
-                        <span>OI: ${(x.oi/1000000).toFixed(2)}M</span>
-                        <span>VOL: ${x.volR.toFixed(1)}x</span>
-                    </div>
-                </div>
-            `).join('');
-    }
+        // 3. POC 突破
+        const peakIdx = k.reduce((maxI, x, i, arr) => (parseFloat(x[2])-parseFloat(x[3]) > parseFloat(arr[maxI][2])-parseFloat(arr[maxI][3]) ? i : maxI), 0);
+        const poc = calcPOC(k.slice(peakIdx));
 
-    async function toggleSystem() {
-        if(isRunning) { isRunning = false; document.getElementById('sysBtn').innerText = "Start Radar"; return; }
-        addLog("System Booting... Fetching pairs", "text-blue-500");
-        const res = await fetch('https://fapi.binance.com/fapi/v1/exchangeInfo');
-        const data = await res.json();
-        symbols = data.symbols.filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING').map(s => s.symbol).filter(s => !EXCLUDE.includes(s));
-        isRunning = true;
-        document.getElementById('sysBtn').innerText = "Stop Radar";
-        scan();
-    }
+        // 4. 資費斜率
+        if(!stats[s]) stats[s] = { frHist: [] };
+        stats[s].frHist.push(parseFloat(f.lastFundingRate));
+        if(stats[s].frHist.length > 20) stats[s].frHist.shift();
+        const slope = (stats[s].frHist[stats[s].frHist.length-1] - stats[s].frHist[0]) / (Math.abs(stats[s].frHist[0]) || 0.0001);
 
-    function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
+        stats[s].lastV = vNow;
 
-    // 滑鈕連動
-    const bind = (id, vid, key, div) => {
-        document.getElementById(id).oninput = (e) => {
-            const v = parseFloat(e.target.value);
-            FILTER[key] = v / div;
-            document.getElementById(vid).innerText = v + (key==='DRV'?'':'%');
-        }
-    };
-    bind('i_slp', 'v_slp', 'SLP', 100);
-    bind('i_drv', 'v_drv', 'DRV', 1);
-    bind('i_poc', 'v_poc', 'POC', 1000);
-    bind('i_sqz', 'v_sqz', 'SQZ', 1000);
-</script>
-</body>
-</html>
+        return {
+            s, price: lastP, poc, slope, drv: drvRaw, 
+            maSqz, oi: parseFloat(o.openInterest), volR: vNow/vAvg,
+            isPocBrk: lastP > poc && vNow > vAvg * 1.5,
+            isSqz: maSqz < FILTER.SQZ,
+            isSqzOrder: ma7 > ma25 && ma25 > ma99
+        };
+    } catch(e) { return null; }
+}

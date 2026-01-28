@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.6 | POC RESTORED</title>
+    <title>⚡ SNIPER V11.7 | VOLATILITY SPIKE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -18,6 +18,7 @@
         .tag-active { background: #22c55e !important; color: #000 !important; }
         .tag-tight { background: #3b82f6 !important; color: #fff !important; }
         .tag-poc { background: #16a34a !important; color: #fff !important; font-weight: 800; }
+        .tag-vlt { background: #8b5cf6 !important; color: #fff !important; } /* 紫色：異動標籤 */
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         input[type=range] { accent-color: #FFD700; }
     </style>
@@ -26,7 +27,7 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.6</h1>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.7</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
@@ -67,7 +68,7 @@
         </main>
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
             <div class="p-3 border-b border-zinc-800 text-red-500 font-bold flex justify-between uppercase">
-                <span>戰鬥日誌</span>
+                <span>戰鬥日誌 (異動偵測)</span>
                 <span id="timerDisplay" class="text-zinc-600">OFFLINE</span>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
@@ -116,10 +117,11 @@
             const premiumMap = Object.fromEntries(premiums.map(p => [p.symbol, p]));
 
             const now = new Date();
+            // 5分鐘快照對齊，用來計算5分鐘內的變化
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
                 tickers.forEach(t => { priceSnapshots[t.symbol] = parseFloat(t.lastPrice); });
-                document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 快照對齊`;
+                document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 5M對齊`;
             }
 
             tickers.forEach(t => {
@@ -131,6 +133,12 @@
                 const fund = parseFloat(premiumMap[s]?.lastFundingRate || 0);
                 const vol = parseFloat(t.quoteVolume);
                 
+                // 波動率計算
+                const v24h = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / parseFloat(t.lowPrice);
+                const oldPrice = priceSnapshots[s] || price;
+                const v5m = (price - oldPrice) / oldPrice;
+                const isVolatile = v5m >= 0.05; // 幣值上升超過5%
+
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fund);
                 if (coinHistory[s].length > 30) coinHistory[s].shift();
@@ -138,33 +146,31 @@
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
                 const slope = coinHistory[s].length >= 30 ? (fund - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
-                const priceChange = Math.abs(parseFloat(t.priceChangePercent)) / 100;
 
                 const isTight = Math.abs(price - avgPrice) / avgPrice < 0.003;
                 const isAboveM7 = price > avgPrice;
                 const isAboveM99 = parseFloat(t.priceChangePercent) > 0;
-                const isPocOk = priceChange >= FILTER.POC;
+                const isPocOk = Math.abs(parseFloat(t.priceChangePercent)) / 100 >= FILTER.POC;
 
+                // 核心判定與異動加分
                 let score = 0;
+                if (isVolatile) score += 50; // 5% 異動直接給予基礎高分
+                
                 if (maSqz < 0.008) { 
-                    score += (maSqz <= FILTER.SQZ) ? 30 : 0;
-                    score += (isPocOk) ? 30 : 0;
-                    score += (drvScore >= FILTER.DRV) ? 40 : 0;
-                } else {
-                    score += (slope <= FILTER.SLP) ? 40 : 0;
+                    score += (maSqz <= FILTER.SQZ) ? 20 : 0;
+                    score += (isPocOk) ? 20 : 0;
                     score += (drvScore >= FILTER.DRV) ? 30 : 0;
-                    score += (isAboveM7 && isAboveM99) ? 20 : 0;
-                    score += (isPocOk) ? 10 : 0;
+                } else {
+                    score += (slope <= FILTER.SLP) ? 30 : 0;
+                    score += (drvScore >= FILTER.DRV) ? 20 : 0;
+                    score += (isAboveM7 && isAboveM99) ? 10 : 0;
                 }
 
-                const sl_p = maSqz < 0.01 ? 0.015 : 0.025;
-                const tp_p = maSqz < 0.01 ? 0.080 : 0.040;
+                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7, isAboveM99, isTight, isPocOk, isVolatile, v5m, score, tp: price*1.05, sl: price*0.98 };
 
-                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7, isAboveM99, isTight, isPocOk, score, tp: price*(1+tp_p), sl: price*(1-sl_p) };
-
-                if (score >= 90 && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
+                if ((score >= 90 || isVolatile) && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
                     lastPushTime[s] = Date.now();
-                    addLog(s, slope, score, 2);
+                    addLog(s, v5m, score, isVolatile ? 2 : 1);
                 }
             });
             render();
@@ -178,7 +184,7 @@
         
         dashboard.innerHTML = list.slice(0, 24).map(x => {
             let statusClass = "base-card";
-            if (x.score >= 90) statusClass = "hunt-card";
+            if (x.score >= 90 || x.isVolatile) statusClass = "hunt-card";
             else if (x.score >= 80) statusClass = "warn-card";
             else if (x.score >= 60) statusClass = "info-card";
 
@@ -187,8 +193,8 @@
                     <div class="flex justify-between items-start mb-1">
                         <div class="flex gap-1">
                             <span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7</span>
-                            <span class="px-1 rounded ${x.isAboveM99 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M99</span>
                             <span class="px-1 rounded ${x.isTight ? 'tag-tight' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
+                            <span class="px-1 rounded ${x.isVolatile ? 'tag-vlt' : 'hidden'}">SPIKE +${(x.v5m*100).toFixed(1)}%</span>
                         </div>
                         <span class="text-xs font-black text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
                     </div>
@@ -206,16 +212,11 @@
                         <div class="bg-black p-1 border border-zinc-800 text-right text-blue-400">DRV: ${x.drvScore.toFixed(0)}</div>
                     </div>
 
-                    <div class="flex justify-between text-[7px] text-zinc-500 mb-2 border-t border-zinc-900 pt-1">
-                        <span>TP: ${x.tp.toFixed(4)}</span>
-                        <span>SL: ${x.sl.toFixed(4)}</span>
-                    </div>
-
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center border-t border-zinc-900 pt-1">
                         <div class="flex gap-2 text-[8px] font-black uppercase">
                             <span class="${x.slope <= FILTER.SLP ?'text-green-500':'text-zinc-700'}">SLP</span>
                             <span class="${x.maSqz <= FILTER.SQZ ?'text-green-500':'text-zinc-700'}">SQZ</span>
-                            <span class="${x.drvScore >= FILTER.DRV ?'text-green-500':'text-zinc-700'}">DRV</span>
+                            <span class="${x.isPocOk ? 'text-green-500':'text-zinc-700'}">POC</span>
                         </div>
                         <div class="px-1 rounded ${x.isPocOk ? 'tag-poc' : 'hidden'} text-[8px]">POC_BRK</div>
                     </div>
@@ -224,11 +225,11 @@
         }).join('');
     }
 
-    function addLog(s, slp, score, lvl) {
+    function addLog(s, v5m, score, lvl) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
-        entry.className = `p-2 bg-zinc-900 border-l-4 ${lvl===2?'border-red-600':'border-orange-500'} text-[9px] mb-1`;
-        entry.innerHTML = `<b>${lvl===2?'🔥':'📡'} ${s}</b> SCORE:${score.toFixed(0)} SLP:${(slp*100).toFixed(1)}% <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
+        entry.className = `p-2 bg-zinc-900 border-l-4 ${lvl===2?'border-purple-600':'border-red-500'} text-[9px] mb-1`;
+        entry.innerHTML = `<b>${lvl===2?'⚡ SPIKE':'🔥 HUNT'} ${s}</b> 5M:+${(v5m*100).toFixed(2)}% SCORE:${score.toFixed(0)} <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
         container.prepend(entry);
     }
 

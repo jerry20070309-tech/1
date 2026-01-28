@@ -2,14 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.5 | VISUAL HIERARCHY</title>
+    <title>⚡ SNIPER V11.6 | POC RESTORED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; }
         
-        /* 評分分級顏色 */
         .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .warn-card { border: 2px solid #f97316; background: #241205 !important; }
         .info-card { border: 1px solid #3b82f6; background: #081221 !important; }
@@ -18,6 +17,7 @@
         .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; opacity: 1 !important; }
         .tag-active { background: #22c55e !important; color: #000 !important; }
         .tag-tight { background: #3b82f6 !important; color: #fff !important; }
+        .tag-poc { background: #16a34a !important; color: #fff !important; font-weight: 800; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         input[type=range] { accent-color: #FFD700; }
     </style>
@@ -26,22 +26,26 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.5</h1>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.6</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
-        <div class="flex gap-4">
-            <div id="klineStatus" class="bg-zinc-800 px-3 py-1 rounded text-white text-[9px] flex items-center">等待對齊...</div>
+        <div class="flex gap-4 text-[9px]">
+            <div id="klineStatus" class="bg-zinc-800 px-3 py-1 rounded text-white flex items-center">等待對齊...</div>
             <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-4 gap-6 items-center uppercase font-bold text-zinc-400">
+    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-5 gap-4 items-center uppercase font-bold text-zinc-400">
         <div class="space-y-1">
             <div class="flex justify-between text-yellow-500"><span>🌀 SQZ (蓄勢)</span><span id="v_sqz">1.2%</span></div>
             <input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full">
+        </div>
+        <div class="space-y-1">
+            <div class="flex justify-between text-green-400"><span>🎯 POC (突破)</span><span id="v_poc">1.1%</span></div>
+            <input type="range" id="i_poc" min="1" max="100" value="11" class="w-full">
         </div>
         <div class="space-y-1">
             <div class="flex justify-between text-red-500"><span>🚨 SLP (突變)</span><span id="v_slp">-15%</span></div>
@@ -52,7 +56,7 @@
             <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-orange-500"><span>🎯 MOM (動量)</span><span id="v_mom">0.8%</span></div>
+            <div class="flex justify-between text-orange-500"><span>⚡ MOM (動量)</span><span id="v_mom">0.8%</span></div>
             <input type="range" id="i_mom" min="1" max="50" value="8" class="w-full">
         </div>
     </div>
@@ -63,7 +67,7 @@
         </main>
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
             <div class="p-3 border-b border-zinc-800 text-red-500 font-bold flex justify-between uppercase">
-                <span>戰鬥日誌 (Live)</span>
+                <span>戰鬥日誌</span>
                 <span id="timerDisplay" class="text-zinc-600">OFFLINE</span>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
@@ -80,11 +84,12 @@
 
     let stats = {}, pinned = new Set(), isRunning = false;
     let coinHistory = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
-    let FILTER = { SQZ: 0.012, SLP: -0.15, DRV: 90, MOM: 0.008 };
+    let FILTER = { SQZ: 0.012, POC: 0.011, SLP: -0.15, DRV: 90, MOM: 0.008 };
 
     const setupSliders = () => {
         const binds = [
             {id:'i_sqz', vid:'v_sqz', key:'SQZ', div:1000, suffix:'%'},
+            {id:'i_poc', vid:'v_poc', key:'POC', div:1000, suffix:'%'},
             {id:'i_slp', vid:'v_slp', key:'SLP', div:100, prefix:'-'},
             {id:'i_drv', vid:'v_drv', key:'DRV', div:1},
             {id:'i_mom', vid:'v_mom', key:'MOM', div:1000, suffix:'%'}
@@ -133,27 +138,29 @@
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
                 const slope = coinHistory[s].length >= 30 ? (fund - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+                const priceChange = Math.abs(parseFloat(t.priceChangePercent)) / 100;
 
                 const isTight = Math.abs(price - avgPrice) / avgPrice < 0.003;
                 const isAboveM7 = price > avgPrice;
                 const isAboveM99 = parseFloat(t.priceChangePercent) > 0;
+                const isPocOk = priceChange >= FILTER.POC;
 
-                // 評分與動態權重
                 let score = 0;
                 if (maSqz < 0.008) { 
-                    score += (maSqz <= FILTER.SQZ) ? 35 : 0;
-                    score += (drvScore >= FILTER.DRV) ? 35 : 0;
-                    score += (slope < -0.05) ? 30 : 0;
+                    score += (maSqz <= FILTER.SQZ) ? 30 : 0;
+                    score += (isPocOk) ? 30 : 0;
+                    score += (drvScore >= FILTER.DRV) ? 40 : 0;
                 } else {
-                    score += (slope <= FILTER.SLP) ? 45 : 0;
-                    score += (drvScore >= FILTER.DRV) ? 35 : 0;
+                    score += (slope <= FILTER.SLP) ? 40 : 0;
+                    score += (drvScore >= FILTER.DRV) ? 30 : 0;
                     score += (isAboveM7 && isAboveM99) ? 20 : 0;
+                    score += (isPocOk) ? 10 : 0;
                 }
 
                 const sl_p = maSqz < 0.01 ? 0.015 : 0.025;
                 const tp_p = maSqz < 0.01 ? 0.080 : 0.040;
 
-                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7, isAboveM99, isTight, score, tp: price*(1+tp_p), sl: price*(1-sl_p) };
+                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7, isAboveM99, isTight, isPocOk, score, tp: price*(1+tp_p), sl: price*(1-sl_p) };
 
                 if (score >= 90 && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
                     lastPushTime[s] = Date.now();
@@ -170,11 +177,6 @@
         const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
         
         dashboard.innerHTML = list.slice(0, 24).map(x => {
-            const isSlpOk = x.slope <= FILTER.SLP;
-            const isSqzOk = x.maSqz <= FILTER.SQZ;
-            const isDrvOk = x.drvScore >= FILTER.DRV;
-            
-            // 決定視覺等級
             let statusClass = "base-card";
             if (x.score >= 90) statusClass = "hunt-card";
             else if (x.score >= 80) statusClass = "warn-card";
@@ -209,10 +211,13 @@
                         <span>SL: ${x.sl.toFixed(4)}</span>
                     </div>
 
-                    <div class="flex gap-2 text-[8px] font-black uppercase">
-                        <span class="${isSlpOk?'text-green-500':'text-zinc-700'}">${isSlpOk?'✅':'❌'} SLP</span>
-                        <span class="${isSqzOk?'text-green-500':'text-zinc-700'}">${isSqzOk?'✅':'❌'} SQZ</span>
-                        <span class="${isDrvOk?'text-green-500':'text-zinc-700'}">${isDrvOk?'✅':'❌'} DRV</span>
+                    <div class="flex justify-between items-center">
+                        <div class="flex gap-2 text-[8px] font-black uppercase">
+                            <span class="${x.slope <= FILTER.SLP ?'text-green-500':'text-zinc-700'}">SLP</span>
+                            <span class="${x.maSqz <= FILTER.SQZ ?'text-green-500':'text-zinc-700'}">SQZ</span>
+                            <span class="${x.drvScore >= FILTER.DRV ?'text-green-500':'text-zinc-700'}">DRV</span>
+                        </div>
+                        <div class="px-1 rounded ${x.isPocOk ? 'tag-poc' : 'hidden'} text-[8px]">POC_BRK</div>
                     </div>
                 </div>
             `;

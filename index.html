@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V9.0 | 終極獵殺結合版</title>
+    <title>⚡ SNIPER V9.1 | 效能與門檻優化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -16,17 +16,21 @@
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #222; }
+        .tag { font-size: 8px; padding: 1px 4px; font-weight: 900; border-radius: 2px; text-transform: uppercase; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V9.0</h1>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V9.1</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
+        </div>
+        <div class="flex gap-2 text-[9px] items-center mr-4">
+            <span class="text-zinc-500">流動性門檻: > 5M USDT</span>
         </div>
         <div class="flex gap-2">
             <button id="upFilterBtn" onclick="toggleUpFilter()" class="bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">📈 僅看上漲</button>
@@ -50,7 +54,7 @@
         </div>
         <div class="flex justify-between items-center text-[9px] bg-black/40 p-2 rounded">
             <div class="text-orange-400">SL: -2.0% / TP: +5.0%</div>
-            <div id="klineStatus" class="text-white ml-2">等待對齊...</div>
+            <div id="klineStatus" class="text-white ml-2 text-right">等待循環...</div>
         </div>
     </div>
 
@@ -58,11 +62,10 @@
         <main class="flex-1 p-3 overflow-y-auto bg-black">
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
         </main>
-        
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
             <div class="p-3 border-b border-zinc-800 text-red-500 font-bold flex justify-between">
                 <span>戰鬥日誌</span>
-                <span id="timerDisplay" class="text-zinc-600">OFFLINE</span>
+                <span id="timerDisplay" class="text-zinc-600">ONLINE</span>
             </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
         </aside>
@@ -73,22 +76,23 @@
         PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
         PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
         EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'],
+        MIN_VOLUME: 5000000, // 🔥 核心優化：成交量小於 500 萬的不顯示
         COOLDOWN: 300000
     };
 
     let stats = {}, pinned = new Set(), isRunning = false, isUpOnly = false;
-    let coinHistory = {}, baseOI = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
+    let baseOI = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
     let FILTER = { SQZ: 0.012, POC: 0.005, DRV: 90 };
 
     async function sendPush(title, message, priority = 0) {
-        const params = new URLSearchParams({ token: CONFIG.PO_TOKEN, user: CONFIG.PO_USER, title, message, priority, sound: priority === 1 ? "falling" : "classical" });
+        const params = new URLSearchParams({ token: CONFIG.PO_TOKEN, user: CONFIG.PO_USER, title, message, priority, sound: "classical" });
         try { await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params }); } catch(e) {}
     }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 全場三合一封包請求
+            // 🔥 效能優化：移除單獨 K 線請求，僅使用 24h 綜合大封包
             const [tRes, bRes, pRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
                 fetch('https://fapi.binance.com/fapi/v1/ticker/bookTicker'),
@@ -100,66 +104,75 @@
             const premiumMap = Object.fromEntries(premiums.map(p => [p.symbol, p]));
 
             const now = new Date();
+            // 5分鐘快照邏輯
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
-                tickers.forEach(t => { priceSnapshots[t.symbol] = { p: parseFloat(t.lastPrice), isUp: !priceSnapshots[t.symbol] || parseFloat(t.lastPrice) >= priceSnapshots[t.symbol].p }; });
+                tickers.forEach(t => { 
+                    priceSnapshots[t.symbol] = { p: parseFloat(t.lastPrice), isUp: !priceSnapshots[t.symbol] || parseFloat(t.lastPrice) >= priceSnapshots[t.symbol].p }; 
+                });
                 document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 對齊`;
             }
 
-            tickers.forEach(async t => {
+            const newStats = {};
+            tickers.forEach(t => {
                 const s = t.symbol;
+                const vol = parseFloat(t.quoteVolume);
+                
+                // 🔥 邏輯篩選 1: 僅看 USDT 交易對並排除主流幣
                 if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) return;
+                
+                // 🔥 邏輯篩選 2: 排除成交量過低的噪音幣 (除非被 Pins)
+                if (vol < CONFIG.MIN_VOLUME && !pinned.has(s)) return;
 
                 const price = parseFloat(t.lastPrice);
                 const vAvg = parseFloat(t.weightedAvgPrice);
                 const fund = parseFloat(premiumMap[s]?.lastFundingRate || 0);
-                const vol = parseFloat(t.quoteVolume);
                 
-                // 運算指標
+                // 指標運算
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / vAvg;
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
                 const isSqz = maSqz < FILTER.SQZ;
                 const isPocBrk = price > vAvg * (1 + FILTER.POC);
                 
-                // 持倉追蹤 (如果被 Pin 或分數高)
-                if (!baseOI[s] && (isSqz || isPocBrk || pinned.has(s))) {
-                    const oiRes = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`);
-                    const oiData = await oiRes.json();
-                    baseOI[s] = parseFloat(oiData.openInterest);
-                }
-
-                stats[s] = {
-                    s, price, change: parseFloat(t.priceChangePercent), fund,
+                newStats[s] = {
+                    s, price, change: parseFloat(t.priceChangePercent), fund, vol,
                     maSqz, drvScore, isSqz, isPocBrk,
                     isUp: priceSnapshots[s]?.isUp ?? true,
                     spread: bookMap[s] ? (parseFloat(bookMap[s].askPrice) - parseFloat(bookMap[s].bidPrice))/price : 0,
                     score: (isSqz?30:0) + (isPocBrk?40:0) + (fund < -0.01?30:0)
                 };
 
-                // 獵殺判定與推播
-                if (fund < -0.02 && drvScore > FILTER.DRV) {
+                // 獵殺推播判定
+                if (fund < -0.02 && drvScore > FILTER.DRV && vol > 10000000) {
                     const pushKey = `${s}_hunt`;
                     if (!lastPushTime[pushKey] || Date.now() - lastPushTime[pushKey] > CONFIG.COOLDOWN) {
-                        sendPush(`🔥 獵殺: ${s}`, `費率: ${(fund*100).toFixed(4)}%\n真空度: ${drvScore.toFixed(0)}`, 1);
+                        sendPush(`🔥 獵殺: ${s}`, `費率: ${(fund*100).toFixed(4)}%\n真空: ${drvScore.toFixed(0)}\n量: ${(vol/1e6).toFixed(1)}M`, 1);
                         addLog(s, fund, drvScore, 2);
                         lastPushTime[pushKey] = Date.now();
                     }
                 }
             });
 
+            stats = newStats;
             render();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Scan Error:", e); }
         window.scanTimer = setTimeout(scan, 3000);
     }
 
     function render() {
         const dashboard = document.getElementById('dashboard');
-        const list = Object.values(stats).filter(x => !isUpOnly || x.isUp);
+        // 🔥 滑塊過濾邏輯：同步套用 FILTER 門檻
+        const list = Object.values(stats).filter(x => {
+            if (isUpOnly && !x.isUp) return false;
+            // 過濾：必須符合其中一項標籤才會在首頁顯示，減少雜訊
+            return x.isSqz || x.isPocBrk || x.drvScore > FILTER.DRV || pinned.has(x.s);
+        });
+
         dashboard.innerHTML = list
             .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score))
             .slice(0, 24)
             .map(x => `
-                <div class="card p-3 rounded-lg ${x.score > 70 ? 'hunt-card' : (x.score > 30 ? 'alert-card' : 'gold-border')} ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
+                <div class="card p-3 rounded-lg ${x.score > 60 ? 'hunt-card' : (x.score > 20 ? 'alert-card' : '')} ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
                     <div class="flex justify-between text-[8px] mb-1 font-bold">
                         <span class="${x.isUp ? 'text-green-500' : 'text-red-500'}">PRE-5K: ${x.isUp ? '📈' : '📉'}</span>
                         <span class="text-blue-500">#${x.drvScore.toFixed(0)} VACUUM</span>
@@ -168,7 +181,7 @@
                         <h2 class="text-xl font-black text-white">${x.s.replace('USDT','')}</h2>
                         <div class="text-right">
                             <div class="${x.fund < 0 ? 'text-red-500' : 'text-green-500'} font-bold">${(x.fund*100).toFixed(4)}%</div>
-                            <div class="text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
+                            <div class="text-zinc-500 text-[9px] font-bold">VOL: ${(x.vol/1e6).toFixed(1)}M</div>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-1 my-2 text-[8px] font-bold uppercase text-zinc-400">
@@ -196,14 +209,15 @@
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
     function toggleUpFilter() { isUpOnly = !isUpOnly; document.getElementById('upFilterBtn').classList.toggle('bg-green-900'); render(); }
     function manualAdd() { const input = document.getElementById('searchInput'); let s = input.value.toUpperCase().trim(); if(!s) return; if(!s.endsWith('USDT')) s+='USDT'; pinned.add(s); input.value=''; render(); }
-    function testPush() { sendPush("Sniper V9.0 測試", "推播修復校準成功！", 1); }
+    function testPush() { sendPush("Sniper V9.1 測試", "成交量門檻 5M 已啟動！", 1); }
 
-    // 滑塊綁定
+    // 🔥 滑塊修正：滑動後立即執行 render()，無需等待下一次掃描
     const bind = (id, vid, key, div) => {
         document.getElementById(id).oninput = (e) => {
             const v = parseFloat(e.target.value);
             FILTER[key] = v / div;
             document.getElementById(vid).innerText = (key==='DRV'?v:(v/10).toFixed(1)+'%');
+            render(); 
         }
     };
     bind('i_sqz', 'v_sqz', 'SQZ', 1000);

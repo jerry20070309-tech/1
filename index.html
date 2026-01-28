@@ -2,227 +2,198 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V9.1 | 效能與門檻優化版</title>
+    <title>⚡ SNIPER V10 | HYBRID ULTIMATE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; position: relative; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; position: relative; }
         .hunt-card { border: 2px solid #ff0000; box-shadow: 0 0 15px #ff0000; animation: blink 0.8s infinite; }
         .alert-card { border: 2px solid #ffa500; box-shadow: 0 0 10px #ffa500; }
-        .poc-break { border-left: 4px solid #22c55e !important; }
-        .ma-squeeze { border-right: 4px solid #eab308 !important; }
         .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #222; }
-        .tag { font-size: 8px; padding: 1px 4px; font-weight: 900; border-radius: 2px; text-transform: uppercase; }
+        input[type=range] { accent-color: #FFD700; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V9.1</h1>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V10</h1>
             <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
                 <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
                 <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
             </div>
         </div>
-        <div class="flex gap-2 text-[9px] items-center mr-4">
-            <span class="text-zinc-500">流動性門檻: > 5M USDT</span>
-        </div>
-        <div class="flex gap-2">
-            <button id="upFilterBtn" onclick="toggleUpFilter()" class="bg-zinc-800 px-3 py-1 rounded text-zinc-400 font-bold border border-zinc-600">📈 僅看上漲</button>
-            <button onclick="testPush()" class="bg-blue-900 px-3 py-1 rounded text-white font-bold border border-blue-400">🧪 測試推播</button>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black">START RADAR</button>
+        <div class="flex gap-4">
+            <div id="klineStatus" class="bg-zinc-800 px-3 py-1 rounded text-white flex items-center">等待對齊...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500 transition-colors">START RADAR</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900/50 p-3 border-b border-white/5 grid grid-cols-4 gap-4 items-center uppercase font-bold text-zinc-400">
+    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-4 gap-6 items-center uppercase font-bold text-zinc-400">
         <div class="space-y-1">
-            <div class="flex justify-between text-yellow-500"><span>🌀 SQZ (擠壓)</span><span id="v_sqz">1.2%</span></div>
-            <input type="range" id="i_sqz" min="1" max="50" value="12" class="w-full h-1 bg-zinc-800 appearance-none rounded">
+            <div class="flex justify-between text-yellow-500"><span>🌀 SQZ (蓄勢)</span><span id="v_sqz">1.2%</span></div>
+            <input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-green-500"><span>🎯 POC (突破)</span><span id="v_poc">0.5%</span></div>
-            <input type="range" id="i_poc" min="0" max="20" value="5" class="w-full h-1 bg-zinc-800 appearance-none rounded">
+            <div class="flex justify-between text-red-500"><span>🚨 SLP (突變)</span><span id="v_slp">-15%</span></div>
+            <input type="range" id="i_slp" min="5" max="50" value="15" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-red-500"><span>📉 DRV (真空)</span><span id="v_drv">90</span></div>
-            <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full h-1 bg-zinc-800 appearance-none rounded">
+            <div class="flex justify-between text-blue-400"><span>🚀 DRV (真空)</span><span id="v_drv">90</span></div>
+            <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full">
         </div>
-        <div class="flex justify-between items-center text-[9px] bg-black/40 p-2 rounded">
-            <div class="text-orange-400">SL: -2.0% / TP: +5.0%</div>
-            <div id="klineStatus" class="text-white ml-2 text-right">等待循環...</div>
+        <div class="space-y-1">
+            <div class="flex justify-between text-orange-500"><span>🎯 MOM (動量)</span><span id="v_mom">0.8%</span></div>
+            <input type="range" id="i_mom" min="1" max="50" value="8" class="w-full">
         </div>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-3 overflow-y-auto bg-black">
-            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3"></div>
+            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
         </main>
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
             <div class="p-3 border-b border-zinc-800 text-red-500 font-bold flex justify-between">
                 <span>戰鬥日誌</span>
-                <span id="timerDisplay" class="text-zinc-600">ONLINE</span>
+                <span id="timerDisplay" class="text-zinc-600 text-[8px]">OFFLINE</span>
             </div>
-            <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-2"></div>
+            <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
         </aside>
     </div>
 
 <script>
     const CONFIG = {
-        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", 
-        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", 
+        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4",
+        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
         EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'],
-        MIN_VOLUME: 5000000, // 🔥 核心優化：成交量小於 500 萬的不顯示
-        COOLDOWN: 300000
+        COOLDOWN: 600000 // 10分鐘
     };
 
-    let stats = {}, pinned = new Set(), isRunning = false, isUpOnly = false;
-    let baseOI = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
-    let FILTER = { SQZ: 0.012, POC: 0.005, DRV: 90 };
+    let stats = {}, pinned = new Set(), isRunning = false;
+    let coinHistory = {}, baseOI = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
+    let FILTER = { SQZ: 0.012, SLP: -0.15, DRV: 90, MOM: 0.008 };
+
+    // 🏮 滑鈕連動校準 (解決 V9.0 顯示問題)
+    const setupSliders = () => {
+        const binds = [
+            {id:'i_sqz', vid:'v_sqz', key:'SQZ', div:1000, suffix:'%'},
+            {id:'i_slp', vid:'v_slp', key:'SLP', div:100, prefix:'-'},
+            {id:'i_drv', vid:'v_drv', key:'DRV', div:1},
+            {id:'i_mom', vid:'v_mom', key:'MOM', div:1000, suffix:'%'}
+        ];
+        binds.forEach(b => {
+            const el = document.getElementById(b.id);
+            el.oninput = (e) => {
+                let v = parseFloat(e.target.value);
+                FILTER[b.key] = (b.key === 'SLP' ? -(v/100) : v / b.div);
+                document.getElementById(b.vid).innerText = 
+                    (b.prefix || '') + (b.key === 'DRV' ? v : (v/10).toFixed(1)) + (b.suffix || '');
+                if (isRunning) render();
+            };
+        });
+    };
 
     async function sendPush(title, message, priority = 0) {
-        const params = new URLSearchParams({ token: CONFIG.PO_TOKEN, user: CONFIG.PO_USER, title, message, priority, sound: "classical" });
+        const params = new URLSearchParams({ token: CONFIG.PO_TOKEN, user: CONFIG.PO_USER, title, message, priority });
         try { await fetch('https://api.pushover.net/1/messages.json', { method: 'POST', body: params }); } catch(e) {}
     }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 🔥 效能優化：移除單獨 K 線請求，僅使用 24h 綜合大封包
-            const [tRes, bRes, pRes] = await Promise.all([
+            const [tRes, pRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
-                fetch('https://fapi.binance.com/fapi/v1/ticker/bookTicker'),
                 fetch('https://fapi.binance.com/fapi/v1/premiumIndex')
             ]);
-            
-            const [tickers, books, premiums] = await Promise.all([tRes.json(), bRes.json(), pRes.json()]);
-            const bookMap = Object.fromEntries(books.map(b => [b.symbol, b]));
+            const tickers = await tRes.json();
+            const premiums = await pRes.json();
             const premiumMap = Object.fromEntries(premiums.map(p => [p.symbol, p]));
 
+            // 5分鐘快照對齊 (V3.6.7 核心)
             const now = new Date();
-            // 5分鐘快照邏輯
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
-                tickers.forEach(t => { 
-                    priceSnapshots[t.symbol] = { p: parseFloat(t.lastPrice), isUp: !priceSnapshots[t.symbol] || parseFloat(t.lastPrice) >= priceSnapshots[t.symbol].p }; 
-                });
+                tickers.forEach(t => { priceSnapshots[t.symbol] = { p: parseFloat(t.lastPrice), isUp: !priceSnapshots[t.symbol] || parseFloat(t.lastPrice) >= priceSnapshots[t.symbol].p }; });
                 document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 對齊`;
             }
 
-            const newStats = {};
-            tickers.forEach(t => {
+            for (const t of tickers) {
                 const s = t.symbol;
-                const vol = parseFloat(t.quoteVolume);
-                
-                // 🔥 邏輯篩選 1: 僅看 USDT 交易對並排除主流幣
-                if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) return;
-                
-                // 🔥 邏輯篩選 2: 排除成交量過低的噪音幣 (除非被 Pins)
-                if (vol < CONFIG.MIN_VOLUME && !pinned.has(s)) return;
+                if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) continue;
 
                 const price = parseFloat(t.lastPrice);
-                const vAvg = parseFloat(t.weightedAvgPrice);
                 const fund = parseFloat(premiumMap[s]?.lastFundingRate || 0);
+                const vol = parseFloat(t.quoteVolume);
                 
-                // 指標運算
-                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / vAvg;
+                // 1. 紀錄歷史費率用於斜率 (V3.6.7)
+                if (!coinHistory[s]) coinHistory[s] = [];
+                coinHistory[s].push(fund);
+                if (coinHistory[s].length > 30) coinHistory[s].shift();
+
+                // 2. 運算指標 (V9.0)
+                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / parseFloat(t.weightedAvgPrice);
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
-                const isSqz = maSqz < FILTER.SQZ;
-                const isPocBrk = price > vAvg * (1 + FILTER.POC);
+                const slope = coinHistory[s].length >= 30 ? (fund - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+
+                // 3. 獵殺判定
+                const isHunt = slope <= FILTER.SLP && drvScore >= FILTER.DRV && fund < -0.01;
                 
-                newStats[s] = {
-                    s, price, change: parseFloat(t.priceChangePercent), fund, vol,
-                    maSqz, drvScore, isSqz, isPocBrk,
-                    isUp: priceSnapshots[s]?.isUp ?? true,
-                    spread: bookMap[s] ? (parseFloat(bookMap[s].askPrice) - parseFloat(bookMap[s].bidPrice))/price : 0,
-                    score: (isSqz?30:0) + (isPocBrk?40:0) + (fund < -0.01?30:0)
-                };
-
-                // 獵殺推播判定
-                if (fund < -0.02 && drvScore > FILTER.DRV && vol > 10000000) {
-                    const pushKey = `${s}_hunt`;
-                    if (!lastPushTime[pushKey] || Date.now() - lastPushTime[pushKey] > CONFIG.COOLDOWN) {
-                        sendPush(`🔥 獵殺: ${s}`, `費率: ${(fund*100).toFixed(4)}%\n真空: ${drvScore.toFixed(0)}\n量: ${(vol/1e6).toFixed(1)}M`, 1);
-                        addLog(s, fund, drvScore, 2);
-                        lastPushTime[pushKey] = Date.now();
-                    }
+                if (isHunt && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
+                    sendPush(`🔥 獵殺: ${s.replace('USDT','')}`, `SLP: ${(slope*100).toFixed(1)}%\nDRV: ${drvScore.toFixed(0)}`, 1);
+                    addLog(s, slope, drvScore, 2);
+                    lastPushTime[s] = Date.now();
                 }
-            });
 
-            stats = newStats;
+                stats[s] = { s, price, fund, maSqz, drvScore, slope, isUp: priceSnapshots[s]?.isUp ?? true };
+            }
             render();
-        } catch (e) { console.error("Scan Error:", e); }
-        window.scanTimer = setTimeout(scan, 3000);
+        } catch (e) { console.error(e); }
+        setTimeout(scan, 3000);
     }
 
     function render() {
         const dashboard = document.getElementById('dashboard');
-        // 🔥 滑塊過濾邏輯：同步套用 FILTER 門檻
-        const list = Object.values(stats).filter(x => {
-            if (isUpOnly && !x.isUp) return false;
-            // 過濾：必須符合其中一項標籤才會在首頁顯示，減少雜訊
-            return x.isSqz || x.isPocBrk || x.drvScore > FILTER.DRV || pinned.has(x.s);
-        });
-
-        dashboard.innerHTML = list
-            .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score))
-            .slice(0, 24)
-            .map(x => `
-                <div class="card p-3 rounded-lg ${x.score > 60 ? 'hunt-card' : (x.score > 20 ? 'alert-card' : '')} ${x.isPocBrk ? 'poc-break' : ''} ${x.isSqz ? 'ma-squeeze' : ''} ${pinned.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">
+        const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.slope - a.slope));
+        
+        dashboard.innerHTML = list.slice(0, 24).map(x => {
+            const level = x.slope <= FILTER.SLP ? 2 : (x.maSqz < FILTER.SQZ ? 1 : 0);
+            return `
+                <div class="card p-3 rounded-lg ${level===2?'hunt-card':(level===1?'alert-card':'')} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                     <div class="flex justify-between text-[8px] mb-1 font-bold">
                         <span class="${x.isUp ? 'text-green-500' : 'text-red-500'}">PRE-5K: ${x.isUp ? '📈' : '📉'}</span>
-                        <span class="text-blue-500">#${x.drvScore.toFixed(0)} VACUUM</span>
+                        <span class="text-blue-500">SLP: ${(x.slope*100).toFixed(1)}%</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <h2 class="text-xl font-black text-white">${x.s.replace('USDT','')}</h2>
                         <div class="text-right">
-                            <div class="${x.fund < 0 ? 'text-red-500' : 'text-green-500'} font-bold">${(x.fund*100).toFixed(4)}%</div>
-                            <div class="text-zinc-500 text-[9px] font-bold">VOL: ${(x.vol/1e6).toFixed(1)}M</div>
+                            <div class="text-red-500 font-bold">${(x.fund*100).toFixed(4)}%</div>
+                            <div class="text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-1 my-2 text-[8px] font-bold uppercase text-zinc-400">
-                        <div class="bg-zinc-900 p-1 rounded">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
-                        <div class="bg-zinc-900 p-1 rounded text-right">SPR: ${(x.spread*100).toFixed(3)}%</div>
-                    </div>
-                    <div class="flex gap-1 flex-wrap">
-                        ${x.isPocBrk ? '<span class="tag bg-green-600 text-black">POC_BRK</span>' : ''}
-                        ${x.isSqz ? '<span class="tag bg-orange-500 text-black">MA_SQZ</span>' : ''}
-                        ${x.fund < -0.01 ? '<span class="tag bg-red-600 text-white">NEG_FUND</span>' : ''}
+                    <div class="grid grid-cols-2 gap-1 mt-2 text-[8px] font-bold text-zinc-500">
+                        <div class="bg-black/50 p-1 border border-zinc-800">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
+                        <div class="bg-black/50 p-1 border border-zinc-800 text-right">DRV: ${x.drvScore.toFixed(0)}</div>
                     </div>
                 </div>
-            `).join('');
+            `;
+        }).join('');
     }
 
-    function addLog(s, f, d, lvl) {
+    function addLog(s, slp, drv, lvl) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
         entry.className = `p-2 bg-zinc-900 border-l-4 ${lvl===2?'border-red-600':'border-orange-500'} text-[9px] mb-1`;
-        entry.innerHTML = `<b>${lvl===2?'🔥':'📡'} ${s}</b> FND:${(f*100).toFixed(3)}% <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
+        entry.innerHTML = `<b>${lvl===2?'🔥':'📡'} ${s}</b> SLP:${(slp*100).toFixed(1)}% <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
         container.prepend(entry);
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); else clearTimeout(window.scanTimer); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
-    function toggleUpFilter() { isUpOnly = !isUpOnly; document.getElementById('upFilterBtn').classList.toggle('bg-green-900'); render(); }
     function manualAdd() { const input = document.getElementById('searchInput'); let s = input.value.toUpperCase().trim(); if(!s) return; if(!s.endsWith('USDT')) s+='USDT'; pinned.add(s); input.value=''; render(); }
-    function testPush() { sendPush("Sniper V9.1 測試", "成交量門檻 5M 已啟動！", 1); }
-
-    // 🔥 滑塊修正：滑動後立即執行 render()，無需等待下一次掃描
-    const bind = (id, vid, key, div) => {
-        document.getElementById(id).oninput = (e) => {
-            const v = parseFloat(e.target.value);
-            FILTER[key] = v / div;
-            document.getElementById(vid).innerText = (key==='DRV'?v:(v/10).toFixed(1)+'%');
-            render(); 
-        }
-    };
-    bind('i_sqz', 'v_sqz', 'SQZ', 1000);
-    bind('i_poc', 'v_poc', 'POC', 1000);
-    bind('i_drv', 'v_drv', 'DRV', 1);
+    
+    setupSliders();
 </script>
 </body>
 </html>

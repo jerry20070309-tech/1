@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.8 | OPTIMIZED</title>
+    <title>⚡ SNIPER V11.8 | TRAILING & FILTERED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -18,6 +18,8 @@
         .tag-poc { background: #16a34a !important; color: #fff !important; font-weight: 800; }
         .tag-vlt { background: #8b5cf6 !important; color: #fff !important; }
         .tag-pattern { border: 1px solid #FFD700; color: #FFD700; padding: 0 4px; border-radius: 2px; font-size: 8px; }
+        /* 移動止盈損專用樣式 */
+        .tsl-box { border-top: 1px dashed #333; margin-top: 4px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 7px; color: #888; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
         input[type=range] { accent-color: #FFD700; }
         .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; transition: 0.2s; }
@@ -91,14 +93,14 @@
 
     let stats = {}, pinned = new Set(), isRunning = false;
     let coinHistory = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
+    let m7History = {}, signalCount = {}; // 用於三階確認
     let FILTER = { SQZ: 0.012, POC: 0.011, SLP: -0.15, DRV: 90, MOM: 0.008 };
 
-    // 新增：快速配置功能
     function applyPreset(type) {
         const presets = {
-            'Ambush': { sqz: 8, poc: 5, slp: 5, drv: 110, mom: 5 }, // 週末埋伏流
-            'Hunt': { sqz: 15, poc: 12, slp: 20, drv: 85, mom: 12 }, // 平日獵殺流
-            'Spike': { sqz: 25, poc: 20, slp: 35, drv: 60, mom: 25 } // 暴力異動流
+            'Ambush': { sqz: 8, poc: 5, slp: 5, drv: 110, mom: 5 },
+            'Hunt': { sqz: 15, poc: 12, slp: 20, drv: 85, mom: 12 },
+            'Spike': { sqz: 25, poc: 20, slp: 35, drv: 60, mom: 25 }
         };
         const p = presets[type];
         document.getElementById('i_sqz').value = p.sqz;
@@ -106,8 +108,6 @@
         document.getElementById('i_slp').value = p.slp;
         document.getElementById('i_drv').value = p.drv;
         document.getElementById('i_mom').value = p.mom;
-        
-        // 觸發所有 input 事件更新 FILTER
         ['i_sqz','i_poc','i_slp','i_drv','i_mom'].forEach(id => {
             document.getElementById(id).dispatchEvent(new Event('input'));
         });
@@ -162,6 +162,28 @@
                 const v5m = (price - oldPrice) / oldPrice;
                 const isVolatile = v5m >= 0.05; 
 
+                // 均線歷史紀錄 (用於計算斜率)
+                if (!m7History[s]) m7History[s] = [];
+                m7History[s].push(avgPrice);
+                if (m7History[s].length > 10) m7History[s].shift();
+
+                // --- 三階過濾邏輯 ---
+                const m7Slope = m7History[s].length > 1 ? avgPrice > m7History[s][0] : false;
+                const m7Distance = (price - avgPrice) / avgPrice;
+                
+                // 1. 位置確認 (>0.2%) 2. 斜率確認 (Slope Up) 3. 乖離確認 (<8%)
+                const passStage1 = price > (avgPrice * 1.002); 
+                const passStage2 = m7Slope;
+                const passStage3 = m7Distance < 0.08; 
+
+                if (!signalCount[s]) signalCount[s] = 0;
+                if (passStage1 && passStage2 && passStage3) {
+                    signalCount[s]++; // 連續通過確認
+                } else {
+                    signalCount[s] = 0; // 任何一階斷掉立刻重置
+                }
+                const isAboveM7Filtered = signalCount[s] >= 3; // 連續3次掃描站穩才亮燈
+
                 if (!coinHistory[s]) coinHistory[s] = [];
                 coinHistory[s].push(fund);
                 if (coinHistory[s].length > 30) coinHistory[s].shift();
@@ -171,19 +193,22 @@
                 const slope = coinHistory[s].length >= 30 ? (fund - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
 
                 const isTight = Math.abs(price - avgPrice) / avgPrice < 0.003;
-                const isAboveM7 = price > avgPrice;
                 const isAboveM99 = parseFloat(t.priceChangePercent) > 0;
                 const isPocOk = Math.abs(parseFloat(t.priceChangePercent)) / 100 >= FILTER.POC;
 
-                // 新增：型態識別標籤邏輯 (QUSDT 型態辨識)
                 let patterns = [];
                 if (maSqz < 0.006) patterns.push("🌀彈簧吸籌");
                 if (drvScore > 95) patterns.push("🚀真空噴發");
                 if (isVolatile && vol > 1e7) patterns.push("🔥妖幣放量");
 
+                // --- 移動止盈損邏輯 (動態計算參考) ---
+                // 移動止損(TSL): 跟隨 M7 均線抬升
+                let tsl = avgPrice * 0.995; 
+                // 移動止盈(TTP): 若處於真空區則擴大止盈空間，否則基準 5%
+                let ttp = drvScore > 90 ? price * (1 + (v5m * 2)) : price * 1.05;
+
                 let score = 0;
                 if (isVolatile) score += 50; 
-                
                 if (maSqz < 0.008) { 
                     score += (maSqz <= FILTER.SQZ) ? 25 : 0;
                     score += (isPocOk) ? 25 : 0;
@@ -191,10 +216,10 @@
                 } else {
                     score += (slope <= FILTER.SLP) ? 35 : 0;
                     score += (drvScore >= FILTER.DRV) ? 25 : 0;
-                    score += (isAboveM7 && isAboveM99) ? 15 : 0;
+                    score += (isAboveM7Filtered && isAboveM99) ? 15 : 0;
                 }
 
-                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7, isAboveM99, isTight, isPocOk, isVolatile, v5m, score, patterns, tp: price*1.05, sl: price*0.98 };
+                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7: isAboveM7Filtered, isAboveM99, isTight, isPocOk, isVolatile, v5m, score, patterns, ttp, tsl };
 
                 if ((score >= 90 || isVolatile) && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
                     lastPushTime[s] = Date.now();
@@ -220,7 +245,7 @@
                 <div class="card p-3 rounded-lg ${statusClass} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                     <div class="flex justify-between items-start mb-1">
                         <div class="flex gap-1 flex-wrap max-w-[70%]">
-                            <span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7</span>
+                            <span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7_VLD</span>
                             <span class="px-1 rounded ${x.isTight ? 'tag-tight' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
                             <span class="px-1 rounded ${x.isVolatile ? 'tag-vlt' : 'hidden'}">SPIKE +${(x.v5m*100).toFixed(1)}%</span>
                             ${x.patterns.map(p => `<span class="tag-pattern">${p}</span>`).join('')}
@@ -248,6 +273,11 @@
                             <span class="${x.isPocOk ? 'text-green-500':'text-zinc-700'}">POC</span>
                         </div>
                         <div class="px-1 rounded ${x.isPocOk ? 'tag-poc' : 'hidden'} text-[8px]">POC_BRK</div>
+                    </div>
+
+                    <div class="tsl-box">
+                        <span>SL_TRAIL: $${x.tsl.toFixed(4)}</span>
+                        <span class="text-green-700">TP_TRAIL: $${x.ttp.toFixed(4)}</span>
                     </div>
                 </div>
             `;

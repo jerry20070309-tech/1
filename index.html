@@ -2,31 +2,40 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.8.9 | FINAL FIX</title>
+    <title>⚡ SNIPER V11.8.9 | LIGHTSPEED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; cursor: pointer; }
-        .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; }
+        .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 15px #ff0000; animation: blink 0.8s infinite; }
         .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
         .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
+        .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
-        input[type=range] { accent-color: #FFD700; }
+        input[type=range] { accent-color: #FFD700; height: 4px; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
-    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.8.9</h1>
+    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-4">
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.8.9</h1>
+            <div class="flex gap-2">
+                <button onclick="applyPreset('Ambush')" class="btn-preset text-blue-400">週末埋伏</button>
+                <button onclick="applyPreset('Hunt')" class="btn-preset text-red-400">強勢獵殺</button>
+                <button onclick="applyPreset('Spike')" class="btn-preset text-purple-400">暴力異動</button>
+                <button onclick="applyPreset('Apex')" class="btn-preset text-yellow-500 bg-yellow-950/20">頂峰狙擊</button>
+            </div>
+        </div>
         <div class="flex gap-4">
-            <div id="klineStatus" class="text-zinc-500 flex items-center">系統待命...</div>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
+            <div id="klineStatus" class="text-zinc-500 flex items-center">數據對齊中...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500 uppercase">Start Radar</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold">
-        <div class="space-y-1"><div class="flex justify-between text-yellow-500"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
+    <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
+        <div class="space-y-1"><div class="flex justify-between text-yellow-500 text-[9px]"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
         <div class="space-y-1 text-green-400"><div class="flex justify-between"><span>🎯 POC</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
         <div class="space-y-1 text-blue-400"><div class="flex justify-between"><span>🚀 DRV</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
         <div class="space-y-1 text-orange-500"><div class="flex justify-between"><span>⚡ MOM</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
@@ -34,10 +43,10 @@
         <div class="space-y-1 text-red-500"><div class="flex justify-between"><span>🚨 SLP</span><span id="v_slp">1.5x</span></div><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
     </div>
 
-    <main class="flex-1 overflow-hidden flex bg-black">
-        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
-        <aside class="w-64 border-l border-yellow-900 bg-zinc-950 p-2 text-[9px]">
-            <div class="text-red-500 font-bold border-b border-red-900 mb-2">LOG</div>
+    <main class="flex-1 overflow-hidden flex">
+        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-black"></div>
+        <aside class="w-64 border-l border-yellow-900 bg-zinc-950 p-2 overflow-y-auto text-[9px]">
+            <div class="text-red-500 font-bold mb-2 border-b border-red-900">戰鬥日誌 (LOG)</div>
             <div id="logContainer" class="space-y-1"></div>
         </aside>
     </main>
@@ -62,83 +71,94 @@
                 let v = parseFloat(e.target.value);
                 FILTER[b.key] = v / b.div;
                 document.getElementById(b.vid).innerText = (v / (b.div === 1 ? 1 : 10)).toFixed(1) + b.suffix;
-                render();
+                if (isRunning) render();
             };
         });
     };
 
+    function applyPreset(type) {
+        const p = {
+            'Ambush': { sqz: 8, poc: 5, drv: 110, mom: 5, rev: 35, slp: 10 },
+            'Hunt':   { sqz: 15, poc: 12, drv: 85, mom: 12, rev: 20, slp: 20 },
+            'Spike':  { sqz: 25, poc: 20, drv: 60, mom: 25, rev: 10, slp: 35 },
+            'Apex':   { sqz: 35, poc: 25, drv: 120, mom: 40, rev: 5, slp: 45 }
+        }[type];
+        Object.keys(p).forEach(k => {
+            const el = document.getElementById('i_' + k);
+            if(el) { el.value = p[k]; el.dispatchEvent(new Event('input')); }
+        });
+    }
+
     async function scan() {
         if(!isRunning) return;
         try {
-            // 【核心修復點】：路徑絕對不能加 ticker，且直接請求全市場快照
+            // 只請求兩個核心封包
             const [tRes, oiRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
-                fetch('https://fapi.binance.com/fapi/v1/openInterest') 
+                fetch('https://fapi.binance.com/fapi/v1/openInterest') // 正確路徑：無 ticker
             ]);
-
+            
             const tickers = await tRes.json();
             const oiData = await oiRes.json();
-            
             const oiMap = {};
-            if(Array.isArray(oiData)) oiData.forEach(d => oiMap[d.symbol] = parseFloat(d.openInterest));
+            oiData.forEach(d => oiMap[d.symbol] = parseFloat(d.openInterest));
 
             const now = new Date();
-            // 每 2 分鐘對齊一次基準
-            if (now.getMinutes() % 2 === 0 && now.getMinutes() !== lastSnapMin) {
+            if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
                 tickers.forEach(t => {
                     priceSnapshots[t.symbol] = parseFloat(t.lastPrice);
                     oiSnapshots[t.symbol] = oiMap[t.symbol] || 0;
                 });
-                document.getElementById('klineStatus').innerText = `已對齊: ${now.getHours()}:${now.getMinutes()}`;
+                document.getElementById('klineStatus').innerText = `已同步: ${now.getHours()}:${now.getMinutes()}`;
             }
 
             tickers.forEach(t => {
                 const s = t.symbol;
                 if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) return;
                 
-                const price = parseFloat(t.lastPrice);
-                const avgPrice = parseFloat(t.weightedAvgPrice);
-                const currentOI = oiMap[s] || 0;
-                const oldOI = oiSnapshots[s] || currentOI;
-                const oiChange = oldOI === 0 ? 0 : ((currentOI - oldOI) / oldOI) * 100;
+                const p = parseFloat(t.lastPrice);
+                const avg = parseFloat(t.weightedAvgPrice);
+                const curOI = oiMap[s] || 0;
+                const oldOI = oiSnapshots[s] || curOI;
+                const oiChg = oldOI === 0 ? 0 : ((curOI - oldOI) / oldOI) * 100;
 
-                if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
+                if (!peakPrices[s] || p > peakPrices[s]) peakPrices[s] = p;
 
-                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
-                const v2m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
-                const pocDisp = Math.abs(price - (avgPrice * (1 - FILTER.POC))) / avgPrice;
-
-                const dVol = (pocDisp * 0.7) + (maSqz * 0.2) + (Math.abs(v2m) * 0.1);
+                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avg;
+                const v5m = (p - (priceSnapshots[s] || p)) / (priceSnapshots[s] || p);
+                const pocD = Math.abs(p - (avg * (1 - FILTER.POC))) / avg;
+                const dVol = (pocD * 0.7) + (maSqz * 0.2) + (Math.abs(v5m) * 0.1);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
 
                 let score = 0;
-                if (price > avgPrice) score += 20;
-                if (v2m >= FILTER.MOM) score += 30;
+                if (p > avg) score += 20;
+                if (v5m >= FILTER.MOM) score += 30;
                 if (drv > FILTER.DRV) score += 30;
-                if (oiChange > 0.2) score += 20;
+                if (oiChg > 0.1) score += 20;
 
-                stats[s] = { s, price, score, peak: peakPrices[s], dVol, drv, oi: currentOI, oiChange,
-                             tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
-                             ttp: peakPrices[s] * (1 - (dVol * FILTER.REV * 10)) };
+                stats[s] = { 
+                    s, p, score, drv, dVol, oiChg, curOI,
+                    tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
+                    ttp: peakPrices[s] * (1 - (dVol * FILTER.REV * 10))
+                };
             });
             render();
-        } catch (e) { console.error("API Error:", e); }
+        } catch (e) { console.error("掃描出錯:", e); }
         setTimeout(scan, 3000);
     }
 
     function render() {
-        const dashboard = document.getElementById('dashboard');
         const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
-        dashboard.innerHTML = list.slice(0, 16).map(x => `
+        document.getElementById('dashboard').innerHTML = list.slice(0, 16).map(x => `
             <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
-                <div class="flex justify-between text-[8px] font-black">
-                    <span class="${x.oiChange > 0 ? 'text-cyan-400' : 'text-red-500'}">OI Δ: ${x.oiChange.toFixed(2)}%</span>
+                <div class="flex justify-between items-center mb-1 font-black">
+                    <span class="${x.oiChg >= 0 ? 'text-cyan-400' : 'text-red-500'}">OI: ${x.oiChg.toFixed(2)}%</span>
                     <span class="text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
                 </div>
-                <div class="flex justify-between items-end my-2">
+                <div class="flex justify-between items-end my-1">
                     <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
-                    <div class="text-right text-white font-bold">$${x.price.toFixed(4)}</div>
+                    <div class="text-right text-white font-bold">$${x.p.toFixed(4)}</div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[8px] text-zinc-400 font-bold mb-2">
                     <div>POC: ${(x.dVol*100).toFixed(2)}%</div>
@@ -151,7 +171,7 @@
             </div>`).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "Stop Radar" : "Start Radar"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
     setupSliders();
 </script>

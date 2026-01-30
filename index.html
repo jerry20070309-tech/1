@@ -2,78 +2,64 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ 小幫手 X-TREME V13.0 | 戰鬥控制台</title>
+    <title>⚡ 小幫手 X-TREME V14.0 | 戰鬥控制台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;900&family=JetBrains+Mono:wght@400;800&display=swap');
-        body { background: #0a0a0a; color: #e0e0e0; font-family: 'JetBrains Mono', 'Noto Sans TC', sans-serif; overflow: hidden; }
-        .bg-grid { background-image: radial-gradient(#222 1px, transparent 1px); background-size: 20px 20px; }
+        body { background: #080808; color: #e0e0e0; font-family: 'JetBrains Mono', 'Noto Sans TC', sans-serif; overflow: hidden; }
+        .bg-grid { background-image: radial-gradient(#1a1a1a 1px, transparent 1px); background-size: 25px 25px; }
 
-        /* 卡片與發光效果 */
-        .card { background: rgba(15, 15, 15, 0.95); border: 1px solid #333; position: relative; backdrop-filter: blur(10px); }
-        .hunt-card { border: 2px solid #ff4444; box-shadow: inset 0 0 10px rgba(255, 68, 68, 0.2); animation: glow-red 2s infinite; }
-        .decouple-card { border: 2px solid #a855f7; box-shadow: inset 0 0 10px rgba(168, 85, 247, 0.3); }
-        @keyframes glow-red { 0%, 100% { border-color: #ff4444; } 50% { border-color: #660000; } }
+        .card { background: rgba(15, 15, 15, 0.9); border: 1px solid #222; position: relative; }
+        .high-score { border: 2px solid #ff0000 !important; box-shadow: 0 0 15px rgba(255,0,0,0.4); }
 
-        /* ATR 護盾條視覺化 */
-        .shield-bg { height: 8px; background: #1a1a1a; border-radius: 4px; position: relative; overflow: hidden; border: 1px solid #333; }
-        .shield-fill { height: 100%; background: linear-gradient(90deg, #ff4444 0%, #ffeb3b 50%, #4caf50 100%); opacity: 0.6; }
-        .shield-pointer { position: absolute; top: 0; width: 4px; height: 100%; background: #fff; box-shadow: 0 0 8px #fff; transition: left 0.3s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        .shield-bg { height: 8px; background: #111; border-radius: 4px; position: relative; overflow: hidden; border: 1px solid #333; }
+        .shield-fill { height: 100%; background: linear-gradient(90deg, #ff4444, #ffeb3b, #22c55e); opacity: 0.3; }
+        .shield-pointer { position: absolute; top: 0; width: 4px; height: 100%; background: #fff; box-shadow: 0 0 8px #fff; transition: 0.3s; }
 
-        /* 日誌區域 */
-        #combat-log { font-size: 9px; color: #00ffcc; line-height: 1.4; scrollbar-width: none; }
-        .log-entry { border-left: 2px solid #00ffcc; padding-left: 5px; margin-bottom: 4px; background: rgba(0, 255, 204, 0.05); }
-
-        /* 中文標籤強化 */
-        .label-zh { font-size: 10px; font-weight: 900; color: #888; letter-spacing: 1px; }
+        #combat-log { font-size: 10px; color: #ffd700; line-height: 1.6; }
+        .log-entry { border-left: 2px solid #ffd700; padding: 5px 8px; margin-bottom: 6px; background: rgba(255, 215, 0, 0.05); border-radius: 0 4px 4px 0; }
+        
+        .mode-btn { transition: 0.2s; border: 1px solid #444; text-transform: uppercase; font-weight: 900; font-style: italic; }
+        .mode-btn:hover { transform: translateY(-2px); border-color: #fff; }
+        .label-zh { font-size: 11px; font-weight: 900; color: #666; }
     </style>
 </head>
 <body class="h-screen flex flex-col bg-grid">
 
-    <header class="p-3 border-b-2 border-purple-900 bg-black flex justify-between items-center shadow-2xl">
+    <header class="p-3 border-b-2 border-zinc-800 bg-black flex justify-between items-center">
         <div class="flex items-center gap-6">
-            <h1 class="text-3xl font-black text-white italic tracking-tighter">小幫手 <span class="text-purple-500">X-TREME</span></h1>
-            <div id="satStatus" class="px-3 py-1 rounded bg-zinc-900 border border-zinc-700 text-[10px] font-bold">系統待命</div>
+            <h1 class="text-3xl font-black text-white italic tracking-tighter uppercase">Helper <span class="text-yellow-500">X-TREME</span></h1>
+            <div id="satStatus" class="px-3 py-1 rounded bg-zinc-900 border border-zinc-700 text-[10px] font-bold text-zinc-400">雷達待命</div>
         </div>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-purple-600 text-white px-10 py-2 rounded font-black hover:bg-purple-500 transition-all uppercase italic">啟動雷達掃描</button>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-yellow-500 text-black px-12 py-2 rounded-sm font-black hover:bg-white transition-all italic uppercase">啟動核心掃描</button>
     </header>
 
-    <nav class="bg-zinc-950/90 p-3 border-b border-zinc-800 grid grid-cols-5 gap-6 items-center shadow-lg">
-        <div class="flex flex-col">
-            <span class="label-zh">🌀 蓄勢強度 (SQZ)</span>
-            <input type="range" id="i_sqz" min="5" max="50" value="12" class="accent-purple-500">
+    <nav class="bg-zinc-950 p-4 border-b border-zinc-800 grid grid-cols-12 gap-4 items-center">
+        <div class="col-span-4 flex gap-2 border-r border-zinc-800 pr-4">
+            <button onclick="setMode('ambush')" class="mode-btn flex-1 bg-green-900/30 text-green-400 py-2 rounded text-[10px]">週末埋伏</button>
+            <button onclick="setMode('hunt')" class="mode-btn flex-1 bg-red-900/30 text-red-400 py-2 rounded text-[10px]">強勢獵殺</button>
+            <button onclick="setMode('vio')" class="mode-btn flex-1 bg-purple-900/30 text-purple-400 py-2 rounded text-[10px]">暴力異動</button>
         </div>
-        <div class="flex flex-col">
-            <span class="label-zh">🎯 突破臨界 (POC)</span>
-            <input type="range" id="i_poc" min="1" max="100" value="11" class="accent-purple-500">
-        </div>
-        <div class="flex flex-col">
-            <span class="label-zh">🚀 真空驅動 (DRV)</span>
-            <input type="range" id="i_drv" min="10" max="150" value="90" class="accent-purple-500">
-        </div>
-        <div class="text-center">
-            <span class="label-zh">💎 脫鉤偵測</span>
-            <div class="text-purple-400 font-bold text-xs mt-1">自動權重中</div>
-        </div>
-        <div class="text-center">
-            <span class="label-zh">🛡️ ATR 防禦</span>
-            <div id="atr-status" class="text-green-400 font-bold text-xs mt-1">動態縮緊: ON</div>
+        
+        <div class="col-span-8 grid grid-cols-3 gap-6 px-4">
+            <div class="flex flex-col"><span class="label-zh text-zinc-500">蓄勢強度 (SQZ)</span><input type="range" id="i_sqz" min="5" max="50" value="12" class="accent-yellow-500"></div>
+            <div class="flex flex-col"><span class="label-zh text-zinc-500">突破臨界 (POC)</span><input type="range" id="i_poc" min="1" max="100" value="11" class="accent-yellow-500"></div>
+            <div class="flex flex-col"><span class="label-zh text-zinc-500">真空驅動 (DRV)</span><input type="range" id="i_drv" min="10" max="150" value="90" class="accent-yellow-500"></div>
         </div>
     </nav>
 
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-4 overflow-y-auto">
-            <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            <div id="dashboard" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
         </main>
 
-        <aside class="w-64 border-l border-zinc-800 bg-black/50 p-3 flex flex-col">
-            <div class="label-zh mb-4 border-b border-zinc-700 pb-2 flex justify-between">
-                <span>⚔️ 戰鬥日誌</span>
-                <span class="text-zinc-600">LIVE</span>
+        <aside class="w-80 border-l border-zinc-800 bg-black/50 p-4 flex flex-col">
+            <div class="label-zh mb-4 border-b border-zinc-800 pb-2 flex justify-between">
+                <span class="text-yellow-500 italic">⚔️ 90分級別戰鬥紀錄</span>
+                <span id="log-count" class="text-zinc-600">0</span>
             </div>
             <div id="combat-log" class="flex-1 overflow-y-auto">
-                <div class="log-entry">系統初始化完成...</div>
-            </div>
+                </div>
         </aside>
     </div>
 
@@ -85,22 +71,26 @@
 
     let stats = {}, isRunning = false;
     let btcSnapshot = { chg: 0 };
+    let loggedAssets = new Set(); 
 
-    function initSystem() {
-        const status = document.getElementById('satStatus');
-        if (CONFIG.SATURDAY_MODE) {
-            status.innerHTML = `<span class="text-green-500">●</span> 週六埋伏模式啟動`;
-            addLog("偵測到今日為週六，自動切換至高勝率埋伏策略。");
-        } else {
-            status.innerHTML = `<span class="text-blue-500">●</span> 常規掃描模式`;
-        }
+    // 快速模式參數設定
+    function setMode(type) {
+        const sqz = document.getElementById('i_sqz');
+        const poc = document.getElementById('i_poc');
+        const drv = document.getElementById('i_drv');
+
+        if(type === 'ambush') { sqz.value = 8; poc.value = 5; drv.value = 40; }
+        if(type === 'hunt') { sqz.value = 15; poc.value = 25; drv.value = 110; }
+        if(type === 'vio') { sqz.value = 20; poc.value = 15; drv.value = 130; }
+        
+        addLog(`⚡ 模式切換：${type === 'ambush' ? '週末埋伏' : type === 'hunt' ? '強勢獵殺' : '暴力異動'}`, true);
     }
 
-    function addLog(msg) {
+    function addLog(msg, isSystem = false) {
         const log = document.getElementById('combat-log');
         const entry = document.createElement('div');
         entry.className = 'log-entry';
-        entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        entry.innerHTML = `<span class="${isSystem ? 'text-zinc-500' : 'text-yellow-500 font-black'}">[${new Date().toLocaleTimeString('zh-TW', {hour12:false})}]</span> ${msg}`;
         log.prepend(entry);
     }
 
@@ -120,38 +110,30 @@
                 const vol = parseFloat(t.quoteVolume);
                 if (vol < 5000000) return;
 
-                // [POC] 突破計算
-                const pocVal = Math.abs(altChg);
-                const userPoc = document.getElementById('i_poc').value / 10;
-
-                // [W-E] 脫鉤邏輯
-                let decouplingWeight = 0;
-                if (altChg > 1.0 && btcSnapshot.chg <= -0.5) {
-                    decouplingWeight = 30;
-                    if (!stats[t.symbol]?.isDecoupled) addLog(`🔥 強力脫鉤偵測: ${t.symbol}`);
-                }
-
-                // [R-1] ATR 防禦結合 POC 
                 const range24h = parseFloat(t.highPrice) - parseFloat(t.lowPrice);
-                // 這裡實作 R-1 跟 POC 結合：POC 越高，縮得越緊
-                const pocTighten = Math.max(0.2, 0.6 - (pocVal / 5)); 
+                const pocVal = Math.abs(altChg);
+                
+                // R-1 聯動 POC
+                const pocTighten = Math.max(0.15, 0.6 - (pocVal / 5)); 
                 const atrTP = price + (range24h * 1.2); 
                 const atrSL = price - (range24h * pocTighten);
                 const shieldPos = Math.min(100, Math.max(0, ((price - atrSL) / (atrTP - atrSL)) * 100));
 
-                const drv = Math.min(100, (Math.abs(altChg) / (vol / 1e8)) * 15);
-                const lv = Math.min(10, Math.round((drv / 10) + (Math.abs(altChg) / 2)));
+                const drv = Math.min(150, (Math.abs(altChg) / (vol / 1e8)) * 15);
+                const lv = Math.min(10, Math.round((drv / 15) + (Math.abs(altChg) / 2)));
+                const sqz = (range24h / price) * 100;
 
-                const sqz = range24h / price;
-                let score = (sqz < 0.012 ? 40 : 10) + (drv > 80 ? 30 : 0) + decouplingWeight;
+                // 核心評分
+                let score = (sqz < 1.2 ? 40 : 10) + (drv > 90 ? 30 : 0) + (altChg > btcSnapshot.chg + 2 ? 30 : 0);
+                if (CONFIG.SATURDAY_MODE && sqz < 0.8) score += 10;
 
-                stats[t.symbol] = {
-                    s: t.symbol, price, chg: altChg, score, lv, drv,
-                    atrTP, atrSL, shieldPos,
-                    isDecoupled: decouplingWeight >= 30,
-                    sqz: (sqz * 100).toFixed(2),
-                    isPocHit: pocVal > userPoc
-                };
+                // 90分日誌紀錄邏輯
+                if (score >= 90 && !loggedAssets.has(t.symbol)) {
+                    addLog(`🎯 達標紀錄: ${t.symbol.replace('USDT','')} | 價格: ${price} | 分數: ${score.toFixed(0)}`);
+                    loggedAssets.add(t.symbol);
+                }
+
+                stats[t.symbol] = { s: t.symbol, price, chg: altChg, score, lv, drv, atrTP, atrSL, shieldPos, sqz: sqz.toFixed(2) };
             });
             render();
         } catch (e) { console.error(e); }
@@ -163,24 +145,21 @@
         const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 12);
 
         dashboard.innerHTML = list.map(x => `
-            <div class="card p-4 rounded ${x.isDecoupled ? 'decouple-card' : (x.score > 75 ? 'hunt-card' : '')}">
+            <div class="card p-4 rounded-sm ${x.score >= 90 ? 'high-score' : ''}">
                 <div class="flex justify-between items-start mb-3">
                     <div>
-                        <div class="flex items-center gap-2">
-                            <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
-                            ${x.isPocHit ? '<span class="animate-ping w-2 h-2 bg-orange-500 rounded-full"></span>' : ''}
-                        </div>
-                        <div class="label-zh">突破狀態: ${x.isPocHit ? '<span class="text-orange-500">點火中</span>' : '蓄能中'}</div>
+                        <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
+                        <div class="label-zh">目前價格: ${x.price}</div>
                     </div>
                     <div class="text-right">
-                        <div class="label-zh text-purple-400">綜合評分</div>
-                        <div class="text-2xl font-black text-white leading-none">${x.score.toFixed(0)}</div>
+                        <div class="label-zh text-yellow-500 italic">戰鬥評分</div>
+                        <div class="text-3xl font-black text-white leading-none">${x.score.toFixed(0)}</div>
                     </div>
                 </div>
                 
                 <div class="mb-4">
-                    <div class="flex justify-between text-[8px] font-bold text-zinc-500 mb-1">
-                        <span>🛡️ 止損防線: ${x.atrSL.toFixed(4)}</span>
+                    <div class="flex justify-between label-zh mb-1">
+                        <span>🛡️ R-1 止損防線: ${x.atrSL.toFixed(4)}</span>
                         <span>目標止盈: ${x.atrTP.toFixed(4)}</span>
                     </div>
                     <div class="shield-bg">
@@ -191,19 +170,19 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <div class="label-zh mb-1">衝刺等級 LV ${x.lv}</div>
-                        <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div class="h-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" style="width: ${x.lv * 10}%"></div>
+                        <div class="label-zh mb-1 uppercase">Thrust Level ${x.lv}</div>
+                        <div class="h-2 bg-zinc-900 rounded-full overflow-hidden">
+                            <div class="h-full bg-yellow-500 shadow-[0_0_10px_#eab308]" style="width: ${x.lv * 10}%"></div>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="${x.chg >= 0 ? 'text-green-400' : 'text-red-400'} text-xl font-black">${x.chg > 0 ? '+' : ''}${x.chg}%</div>
+                    <div class="text-right text-2xl font-black ${x.chg >= 0 ? 'text-green-500' : 'text-red-500'}">
+                        ${x.chg}%
                     </div>
                 </div>
 
                 <div class="mt-4 pt-2 border-t border-zinc-800 flex justify-between label-zh">
-                    <span>SQZ (壓縮): ${x.sqz}%</span>
-                    <span>DRV (真空): ${x.drv.toFixed(0)}</span>
+                    <span>蓄勢壓縮: ${x.sqz}%</span>
+                    <span>真空驅動: ${x.drv.toFixed(0)}</span>
                 </div>
             </div>
         `).join('');
@@ -211,11 +190,11 @@
 
     function toggleSystem() { 
         isRunning = !isRunning; 
-        document.getElementById('sysBtn').innerText = isRunning ? "停止雷達" : "啟動雷達掃描"; 
+        document.getElementById('sysBtn').innerText = isRunning ? "停止系統" : "啟動核心掃描"; 
         if(isRunning) scan(); 
     }
 
-    initSystem();
+    document.getElementById('satStatus').innerText = CONFIG.SATURDAY_MODE ? "📅 週六模式啟動中" : "⚡ 常規掃描中";
 </script>
 </body>
 </html>

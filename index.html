@@ -2,150 +2,168 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.9.2 | DUAL-PACKET ONLY</title>
+    <title>⚡ SNIPER V12.0.0 | VP & MOMENTUM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.2s; cursor: pointer; }
-        .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 15px #ff0000; animation: blink 0.8s infinite; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; cursor: pointer; }
+        /* 融合程式二的紫色突破特效 */
+        .vp-break-card { border: 2px solid #a855f7 !important; background: #1e1b4b !important; box-shadow: 0 0 20px #a855f7; animation: blink 0.8s infinite; }
         .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         input[type=range] { accent-color: #FFD700; height: 4px; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.9.2</h1>
+        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.0.0</h1>
         <div class="flex gap-4">
-            <div id="klineStatus" class="text-zinc-500 flex items-center italic">Ready...</div>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
+            <div id="klineStatus" class="text-zinc-500">掃描器待命...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500 text-xs">START RADAR</button>
         </div>
     </header>
 
     <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
-        <div class="space-y-1"><div class="flex justify-between text-yellow-500 text-[9px]"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
+        <div class="space-y-1"><div class="flex justify-between text-yellow-500"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
         <div class="space-y-1 text-green-400"><div class="flex justify-between"><span>🎯 POC</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
         <div class="space-y-1 text-blue-400"><div class="flex justify-between"><span>🚀 DRV</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
         <div class="space-y-1 text-orange-500"><div class="flex justify-between"><span>⚡ MOM</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
-        <div class="space-y-1 text-pink-500"><div class="flex justify-between"><span>📈 REV</span><span id="v_rev">2.0%</span></div><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
+        <div class="space-y-1 text-pink-500"><div class="flex justify-between"><span>📉 REV</span><span id="v_rev">2.0%</span></div><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
         <div class="space-y-1 text-red-500"><div class="flex justify-between"><span>🚨 SLP</span><span id="v_slp">1.5x</span></div><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
     </div>
 
-    <main class="flex-1 overflow-hidden bg-black">
-        <div id="dashboard" class="h-full p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+    <main class="flex-1 overflow-hidden p-3 bg-black">
+        <div id="dashboard" class="h-full overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
     </main>
 
 <script>
-    const CONFIG = {
-        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4",
-        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
-        EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'],
-        COOLDOWN: 600000 // 10分鐘冷卻
-    };
-
-    let stats = {}, isRunning = false;
-    let priceSnapshots = {}, peakPrices = {}, oiSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
+    let stats = {}, vpResults = {}, isRunning = false;
+    let priceSnapshots = {}, peakPrices = {}, lastSnapMin = -1;
     let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90, MOM: 0.008, REV: 0.02, SLP: 1.5 };
 
-    async function pushNotice(symbol, score, oi) {
-        if (Date.now() - (lastPushTime[symbol] || 0) < CONFIG.COOLDOWN) return;
-        lastPushTime[symbol] = Date.now();
-        const msg = `${symbol} 嘎空預警! SCORE: ${score.toFixed(0)} | OI增長: ${oi.toFixed(2)}%`;
-        fetch('https://api.pushover.net/1/messages.json', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: CONFIG.PO_TOKEN, user: CONFIG.PO_USER, message: msg, priority: 1 })
-        }).catch(e => console.error("Push Failed"));
+    // 程式二的籌碼密集區算法
+    function calcVolumeProfile(klines, currentPrice) {
+        let maxH = 0; let hIdx = 0;
+        klines.forEach((k, i) => { if (parseFloat(k[2]) > maxH) { maxH = parseFloat(k[2]); hIdx = i; } });
+        const range = klines.slice(hIdx);
+        if (range.length < 5) return { isBreak: false, pocH: 0 };
+
+        const lows = range.map(k => parseFloat(k[3]));
+        const highs = range.map(k => parseFloat(k[2]));
+        const minP = Math.min(...lows), maxP = Math.max(...highs);
+        const binSize = (maxP - minP) / 20;
+        const bins = new Array(20).fill(0);
+
+        range.forEach(k => {
+            const vol = parseFloat(k[5]);
+            const avgP = (parseFloat(k[2]) + parseFloat(k[3])) / 2;
+            const idx = Math.min(19, Math.floor((avgP - minP) / binSize));
+            bins[idx] += vol;
+        });
+
+        const maxBinIdx = bins.indexOf(Math.max(...bins));
+        const pocH = minP + (maxBinIdx * binSize) + binSize;
+        return { isBreak: currentPrice > pocH, pocH: pocH };
     }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 嚴格執行：只發送這兩個正確的封包
-            const [tRes, oiRes] = await Promise.all([
-                fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
-                fetch('https://fapi.binance.com/fapi/v1/ticker/openInterest')
-            ]);
-            
+            const tRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
             const tickers = await tRes.json();
-            const oiData = await oiRes.json();
-            const oiMap = Object.fromEntries(oiData.map(d => [d.symbol, parseFloat(d.openInterest)]));
-
             const now = new Date();
-            if (now.getMinutes() !== lastSnapMin) {
+
+            // 數據對齊 (每 5 分鐘同步一次快照)
+            if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
-                tickers.forEach(t => {
-                    priceSnapshots[t.symbol] = parseFloat(t.lastPrice);
-                    oiSnapshots[t.symbol] = oiMap[t.symbol] || 0;
-                });
-                peakPrices = {}; // 每分鐘重置峰值，讓TSL跟隨
-                document.getElementById('klineStatus').innerText = `SYNC: ${now.getHours()}:${now.getMinutes()}`;
+                tickers.forEach(t => priceSnapshots[t.symbol] = parseFloat(t.lastPrice));
+                document.getElementById('klineStatus').innerText = `同步完成: ${now.getHours()}:${now.getMinutes()}`;
             }
 
-            tickers.forEach(t => {
+            for (const t of tickers.slice(0, 50)) { // 範例限制前50名以保流暢，可自調
                 const s = t.symbol;
-                if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) return;
-                
-                const p = parseFloat(t.lastPrice);
-                const avg = parseFloat(t.weightedAvgPrice);
-                const curOI = oiMap[s] || 0;
-                const oldOI = oiSnapshots[s] || curOI;
-                const oiChg = oldOI === 0 ? 0 : ((curOI - oldOI) / oldOI) * 100;
+                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) continue;
 
-                if (!peakPrices[s] || p > peakPrices[s]) peakPrices[s] = p;
+                const price = parseFloat(t.lastPrice);
+                const avgPrice = parseFloat(t.weightedAvgPrice);
+                if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avg;
-                const vMin = (p - (priceSnapshots[s] || p)) / (priceSnapshots[s] || p);
-                const pocD = Math.abs(p - avg) / avg;
-                const dVol = (pocD * 0.7) + (maSqz * 0.2) + (Math.abs(vMin) * 0.1);
+                // 程式一策略：趨勢、動能、驅動
+                const trendUp = price > avgPrice;
+                const vMin = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
+                
+                // 程式二策略添加：如果未計算過或每幾輪更新一次 K 線籌碼
+                if (!vpResults[s] || now.getSeconds() % 15 === 0) {
+                    const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
+                    const klines = await kRes.json();
+                    vpResults[s] = calcVolumeProfile(klines, price);
+                }
 
+                // 綜合打分系統 (打分數標準)
                 let score = 0;
-                if (p > avg) score += 20;
-                if (vMin >= FILTER.MOM) score += 30;
-                if (drv > FILTER.DRV) score += 30;
-                if (oiChg > 0.1) score += 20;
+                if (trendUp) score += 20;               // 趨勢分
+                if (vMin >= FILTER.MOM) score += 20;     // 動能分
+                if (drv > FILTER.DRV) score += 20;       // 驅動分
+                if (vpResults[s].isBreak) score += 40;  // 籌碼突破獎勵 (程式二添加)
 
-                stats[s] = { s, p, score, drv, dVol, oiChg, 
-                             tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
-                             ttp: p * (1 + (dVol * FILTER.REV * 5)) };
+                // 移動止盈止損計算
+                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
+                const dVol = (Math.abs(price - avgPrice)/avgPrice * 0.7) + (maSqz * 0.3);
 
-                if (score >= 90) pushNotice(s, score, oiChg);
-            });
+                stats[s] = { 
+                    s, price, score, drv, trendUp, 
+                    pocH: vpResults[s].pocH, 
+                    isBreak: vpResults[s].isBreak,
+                    tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
+                    ttp: peakPrices[s] * (1 - (dVol * FILTER.REV * 10))
+                };
+            }
             render();
-        } catch (e) { console.error("API Error"); }
+        } catch (e) { console.error(e); }
         setTimeout(scan, 3000);
     }
 
     function render() {
         const list = Object.values(stats).sort((a,b) => b.score - a.score);
-        document.getElementById('dashboard').innerHTML = list.slice(0, 20).map(x => `
-            <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''}">
-                <div class="flex justify-between items-center mb-1 font-black">
-                    <span class="${x.oiChg >= 0 ? 'text-cyan-400' : 'text-red-500'}">OI Δ: ${x.oiChg.toFixed(2)}%</span>
-                    <span class="text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
+        document.getElementById('dashboard').innerHTML = list.slice(0, 16).map(x => `
+            <div class="card p-3 rounded-lg ${x.isBreak ? 'vp-break-card' : ''}">
+                <div class="flex justify-between items-center mb-1 font-bold">
+                    <span class="${x.trendUp ? 'text-green-400' : 'text-zinc-600'} text-[8px]">
+                        ${x.isBreak ? '🚀 BREAKOUT' : '☁️ CONSOLIDATION'}
+                    </span>
+                    <span class="text-yellow-500 text-xs">SCORE: ${x.score}</span>
                 </div>
-                <div class="flex justify-between items-end my-1">
-                    <h2 class="text-xl font-black text-white">${x.s.replace('USDT','')}</h2>
-                    <div class="text-right text-white font-bold">$${x.p.toFixed(4)}</div>
+                <div class="flex justify-between items-end my-2">
+                    <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
+                    <div class="text-right">
+                        <div class="text-white font-bold">$${x.price.toFixed(4)}</div>
+                        <div class="text-yellow-600 text-[8px]">POC頂: ${x.pocH.toFixed(4)}</div>
+                    </div>
                 </div>
-                <div class="tsl-box font-bold">
-                    <span class="text-red-500">SL: $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-500">TP: $${x.ttp.toFixed(4)}</span>
+                <div class="grid grid-cols-2 gap-2 text-[8px] text-zinc-400 mb-2">
+                    <div>DRV驅動: ${x.drv.toFixed(0)}</div>
+                    <div class="text-right">趨勢: ${x.trendUp ? 'UP' : 'SIDE'}</div>
+                </div>
+                <div class="tsl-box">
+                    <span class="text-red-500 font-black font-mono">SL: $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500 font-black font-mono">TP: $${x.ttp.toFixed(4)}</span>
                 </div>
             </div>`).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; if(isRunning) scan(); }
     
-    // 初始化滑塊綁定
-    const binds = [{id:'i_sqz',vid:'v_sqz',k:'SQZ',d:1000,s:'%'},{id:'i_poc',vid:'v_poc',k:'POC',d:1000,s:'%'},{id:'i_drv',vid:'v_drv',k:'DRV',d:1,s:''},{id:'i_mom',vid:'v_mom',k:'MOM',d:1000,s:'%'},{id:'i_rev',vid:'v_rev',k:'REV',d:1000,s:'%'},{id:'i_slp',vid:'v_slp',k:'SLP',d:10,s:'x'}];
-    binds.forEach(b => {
-        document.getElementById(b.id).oninput = (e) => {
-            FILTER[b.k] = e.target.value / b.d;
-            document.getElementById(b.vid).innerText = (e.target.value / (b.d===1?1:10)).toFixed(1) + b.s;
+    // 滑桿聯動 (維持程式一功能)
+    document.querySelectorAll('input[type=range]').forEach(el => {
+        el.oninput = (e) => {
+            const id = e.target.id.replace('i_', '');
+            const val = parseFloat(e.target.value);
+            const div = (id === 'drv') ? 1 : (id === 'slp' ? 10 : 1000);
+            FILTER[id.toUpperCase()] = val / div;
+            document.getElementById('v_'+id).innerText = (val / (div === 1 ? 1 : 10)).toFixed(1) + (id==='slp'?'x':'%');
             render();
         };
     });

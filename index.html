@@ -2,37 +2,32 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ 小幫手 X-TREME V15.0 | 最終形態</title>
+    <title>⚡ 小幫手 X-TREME V15.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&family=JetBrains+Mono:wght@800&display=swap');
         body { background: #050505; color: #e0e0e0; font-family: 'JetBrains Mono', 'Noto Sans TC', sans-serif; overflow: hidden; }
         .bg-grid { background-image: radial-gradient(#1a1a1a 1px, transparent 1px); background-size: 25px 25px; }
         
-        /* 核心卡片與 90 分發光 */
-        .card { background: rgba(12, 12, 12, 0.98); border: 1px solid #222; position: relative; transition: 0.2s; }
-        .high-score { border: 2px solid #ff4444 !important; box-shadow: inset 0 0 15px rgba(255, 68, 68, 0.2), 0 0 20px rgba(255, 68, 68, 0.3); }
+        .card { background: rgba(12, 12, 12, 0.98); border: 1px solid #222; position: relative; }
+        .high-score { border: 2px solid #ff4444 !important; box-shadow: 0 0 20px rgba(255, 68, 68, 0.3); }
 
-        /* 靈魂標籤樣式 */
+        /* 標籤 */
         .tag { font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; margin-right: 2px; }
         .tag-vld { background: #064e3b; color: #4ade80; }
         .tag-tight { background: #1a1a1a; color: #666; border: 1px solid #333; }
-        .tag-active-tight { background: #1e3a8a; color: #60a5fa; border: 1px solid #3b82f6; } /* TIGHT 亮燈 */
-        .tag-em { background: #4c1d95; color: #c084fc; } /* EM 標籤 */
-        .tag-yao { background: #78350f; color: #fbbf24; animation: blink 1s infinite; } /* 妖幣標籤 */
-        .tag-burst { background: #450a0a; color: #f87171; } /* 真空爆發 */
+        .tag-active-tight { background: #1e3a8a; color: #60a5fa; border: 1px solid #3b82f6; }
+        .tag-em { background: #4c1d95; color: #c084fc; }
+        .tag-yao { background: #78350f; color: #fbbf24; animation: blink 1s infinite; }
+        .tag-burst { background: #450a0a; color: #f87171; }
 
-        /* 達成策略燈號 (POC SLP SQZ) */
-        .strat-light { font-size: 7px; font-weight: 900; margin-right: 4px; color: #333; }
-        .light-on { color: #fff; text-shadow: 0 0 5px #fff; }
-        .light-poc { color: #f87171; }
-        .light-slp { color: #fbbf24; }
-        .light-sqz { color: #60a5fa; }
+        /* 策略燈號 */
+        .strat-light { font-size: 8px; font-weight: 900; margin-right: 6px; color: #222; transition: 0.3s; }
+        .light-poc { color: #f87171 !important; text-shadow: 0 0 8px #f87171; }
+        .light-slp { color: #fbbf24 !important; text-shadow: 0 0 8px #fbbf24; }
+        .light-sqz { color: #60a5fa !important; text-shadow: 0 0 8px #60a5fa; }
 
         @keyframes blink { 50% { opacity: 0.5; } }
-
-        /* 日誌 */
-        .log-entry { border-left: 2px solid #ff4444; padding: 5px; margin-bottom: 5px; background: rgba(255, 68, 68, 0.05); font-size: 10px; }
     </style>
 </head>
 <body class="h-screen flex flex-col bg-grid">
@@ -45,14 +40,12 @@
         <div class="flex flex-col"><span class="text-[9px] font-black text-orange-400">⚡ MOM (動量)</span><input type="range" id="i_mom" min="1" max="200" value="120" class="accent-orange-500"></div>
     </nav>
 
-    <div class="bg-zinc-950 p-2 border-b border-zinc-800 flex items-center gap-4">
-        <div class="flex gap-2">
-            <button onclick="applyMode('ambush')" class="px-4 py-1 border border-green-900 text-green-500 text-[10px] font-black italic rounded">週末埋伏</button>
-            <button onclick="applyMode('hunt')" class="px-4 py-1 border border-red-900 text-red-500 text-[10px] font-black italic rounded">強勢獵殺</button>
-            <button onclick="applyMode('vio')" class="px-4 py-1 border border-purple-900 text-purple-500 text-[10px] font-black italic rounded">暴力異動</button>
-        </div>
+    <div class="bg-zinc-950 p-2 border-b border-zinc-800 flex items-center gap-3">
+        <button onclick="applyMode('ambush')" class="px-4 py-1 border border-green-900 text-green-500 text-[10px] font-black rounded hover:bg-green-900/20">週末埋伏</button>
+        <button onclick="applyMode('hunt')" class="px-4 py-1 border border-red-900 text-red-500 text-[10px] font-black rounded hover:bg-red-900/20">強勢獵殺</button>
+        <button onclick="applyMode('vio')" class="px-4 py-1 border border-purple-900 text-purple-500 text-[10px] font-black rounded hover:bg-purple-900/20">暴力異動</button>
         <div class="flex-1"></div>
-        <button id="sysBtn" onclick="toggleSystem()" class="px-10 py-1 bg-white text-black text-[10px] font-black italic rounded uppercase">啟動系統</button>
+        <button id="sysBtn" onclick="toggleSystem()" class="px-10 py-1 bg-white text-black text-[10px] font-black rounded uppercase">啟動系統</button>
     </div>
 
     <div class="flex flex-1 overflow-hidden">
@@ -61,10 +54,7 @@
         </main>
 
         <aside class="w-80 border-l border-zinc-800 bg-black/80 p-3 flex flex-col">
-            <div class="text-[10px] font-black mb-2 text-red-500 italic border-b border-zinc-800 pb-1 flex justify-between">
-                <span>⚔️ 90分戰鬥封印紀錄</span>
-                <span id="log-count">0</span>
-            </div>
+            <div class="text-[10px] font-black mb-2 text-red-500 italic border-b border-zinc-800 pb-1">⚔️ 90分戰鬥封印紀錄</div>
             <div id="combat-log" class="flex-1 overflow-y-auto pr-1"></div>
         </aside>
     </div>
@@ -73,7 +63,7 @@
     let stats = {}, isRunning = false, loggedAssets = new Set();
 
     function applyMode(mode) {
-        const p = { ambush:[8, 5, -10, 40, 80], hunt:[15, 30, -25, 110, 150], vio:[25, 15, -40, 140, 180] };
+        const p = { ambush:[10, 5, -5, 40, 80], hunt:[15, 30, -25, 110, 150], vio:[25, 15, -40, 140, 180] };
         const keys = ['i_sqz','i_poc','i_slp','i_drv','i_mom'];
         p[mode].forEach((v, i) => document.getElementById(keys[i]).value = v);
     }
@@ -90,36 +80,29 @@
                 const price = parseFloat(t.lastPrice);
                 const chg = parseFloat(t.priceChangePercent);
                 const range = parseFloat(t.highPrice) - parseFloat(t.lowPrice);
-                const vol = parseFloat(t.quoteVolume);
-                
                 const sqzVal = (range / price) * 100;
-                const drvVal = Math.min(100, (Math.abs(chg) / (vol / 1e8)) * 15);
+                const drvVal = Math.min(100, (Math.abs(chg) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
                 
-                // 讀取當前拉桿門檻
-                const uSqz = document.getElementById('i_sqz').value;
-                const uPoc = document.getElementById('i_poc').value;
-                const uDrv = document.getElementById('i_drv').value;
+                const uSqz = document.getElementById('i_sqz').value / 10;
+                const uPoc = document.getElementById('i_poc').value / 10;
+                const uSlp = document.getElementById('i_slp').value / 10;
 
-                // 邏輯判定
-                const isPocHit = Math.abs(chg) > (uPoc / 10);
-                const isSqzHit = sqzVal < (uSqz / 10);
-                const isDrvHit = drvVal > uDrv;
-                const isYao = (chg > 5 && bChg < -0.5); // 妖幣邏輯：大盤跌它暴漲
+                const isPocHit = Math.abs(chg) > uPoc;
+                const isSqzHit = sqzVal < uSqz;
+                const isSlpHit = chg < uSlp; // 突變邏輯
 
-                let score = (isSqzHit ? 40 : 10) + (isDrvHit ? 30 : 0) + (chg > 2 ? 30 : 0);
+                let score = (isSqzHit ? 40 : 10) + (drvVal > 80 ? 30 : 0) + (chg > 2 ? 30 : 0);
 
                 if (score >= 90 && !loggedAssets.has(t.symbol)) {
                     const log = document.getElementById('combat-log');
-                    log.innerHTML = `<div class="log-entry"><b class="text-white">${t.symbol}</b> <span class="text-red-500 float-right">SCORE: ${score}</span><br><small class="text-zinc-500">價格: ${price} | POC: ${chg}%</small></div>` + log.innerHTML;
+                    log.innerHTML = `<div class="p-2 border-b border-zinc-800 text-[10px]"><b class="text-white">${t.symbol}</b> <span class="text-red-500 float-right">${score}分</span><br>價格: ${price}</div>` + log.innerHTML;
                     loggedAssets.add(t.symbol);
-                    document.getElementById('log-count').innerText = loggedAssets.size;
                 }
 
                 stats[t.symbol] = { 
                     s: t.symbol, price, chg, score, drv: drvVal, sqz: sqzVal.toFixed(2), 
-                    isPocHit, isSqzHit, isDrvHit, isYao,
-                    sl: price * (1 - (0.6 - Math.abs(chg)/20)*0.05),
-                    tp: price * 1.05
+                    isPocHit, isSqzHit, isSlpHit, isYao: (chg > 4 && bChg < -0.5),
+                    sl: price * 0.985, tp: price * 1.05
                 };
             });
             render();
@@ -132,29 +115,32 @@
         const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 16);
         dashboard.innerHTML = list.map(x => `
             <div class="card p-2 rounded-sm ${x.score >= 90 ? 'high-score' : ''}">
-                <div class="flex justify-between items-start mb-1">
+                <div class="flex justify-between items-start">
                     <div class="flex flex-wrap gap-y-1">
                         <span class="tag tag-vld">M7_VLD</span>
                         <span class="tag ${x.isSqzHit ? 'tag-active-tight' : 'tag-tight'}">TIGHT</span>
                         <span class="tag tag-em">EM</span>
-                        ${x.isDrvHit ? '<span class="tag tag-burst italic">🚀 真空噴發</span>' : ''}
+                        ${x.drv > 80 ? '<span class="tag tag-burst">🚀 真空噴發</span>' : ''}
                         ${x.isYao ? '<span class="tag tag-yao">⚠️ 妖幣偵測</span>' : ''}
                     </div>
-                    <span class="text-yellow-500 font-black italic text-[11px]">SCORE: ${x.score}</span>
+                    <div class="text-right">
+                        <div class="text-yellow-500 font-black italic text-[11px]">SCORE: ${x.score}</div>
+                        <div class="text-[9px] font-bold ${x.chg >= 0 ? 'text-green-500' : 'text-red-500'}">${x.price}</div>
+                    </div>
                 </div>
 
-                <div class="flex justify-between items-baseline">
+                <div class="flex justify-between items-center my-1">
                     <h2 class="text-xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
-                    <span class="text-[10px] ${x.chg >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${x.chg}%</span>
+                    <span class="text-[10px] font-bold ${x.chg >= 0 ? 'text-green-500' : 'text-red-500'}">${x.chg}%</span>
                 </div>
 
                 <div class="flex gap-2 mb-1">
-                    <span class="strat-light ${x.isPocHit ? 'light-on light-poc' : ''}">POC</span>
-                    <span class="strat-light ${x.score > 85 ? 'light-on light-slp' : ''}">SLP</span>
-                    <span class="strat-light ${x.isSqzHit ? 'light-on light-sqz' : ''}">SQZ</span>
+                    <span class="strat-light ${x.isPocHit ? 'light-poc' : ''}">POC</span>
+                    <span class="strat-light ${x.isSlpHit ? 'light-slp' : ''}">SLP</span>
+                    <span class="strat-light ${x.isSqzHit ? 'light-sqz' : ''}">SQZ</span>
                 </div>
 
-                <div class="bg-zinc-900/50 p-1 text-[8px] grid grid-cols-2 gap-x-2 text-zinc-500 font-bold border border-zinc-800">
+                <div class="bg-zinc-900 p-1 text-[8px] grid grid-cols-2 gap-x-2 text-zinc-500 font-bold border border-zinc-800">
                     <span>SQZ: ${x.sqz}%</span>
                     <span class="text-right text-cyan-500">DRV: ${x.drv.toFixed(0)}</span>
                 </div>

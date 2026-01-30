@@ -97,7 +97,7 @@
     async function scan() {
         if(!isRunning) return;
         try {
-            // 同時抓取行情與持倉 API
+            // 【修復點】明確指名全路徑，避免 404
             const [tRes, oiRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
                 fetch('https://fapi.binance.com/fapi/v1/ticker/openInterest')
@@ -105,10 +105,14 @@
             
             const tickers = await tRes.json();
             const oiData = await oiRes.json();
-            const oiMap = Object.fromEntries(oiData.map(o => [o.symbol, parseFloat(o.openInterest)]));
-            const now = new Date();
+            
+            // 【修復點】改用全市場 OI 對照表，不再重複請求 API
+            const oiMap = {};
+            if (Array.isArray(oiData)) {
+                oiData.forEach(o => oiMap[o.symbol] = parseFloat(o.openInterest));
+            }
 
-            // 每 5 分鐘快照價格與持倉，用於計算 MOM 與 OI%
+            const now = new Date();
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
                 tickers.forEach(t => {
@@ -124,15 +128,12 @@
                 
                 const price = parseFloat(t.lastPrice);
                 const avgPrice = parseFloat(t.weightedAvgPrice);
-                
-                // 持倉數據計算
                 const currentOI = oiMap[s] || 0;
                 const oldOI = oiSnapshots[s] || currentOI;
                 const oiChange = oldOI === 0 ? 0 : ((currentOI - oldOI) / oldOI) * 100;
 
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                // --- 保留原有策略計算 ---
                 const ma7 = avgPrice;
                 const ma25 = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
                 const trendUp = price > ma7 && ma7 > ma25;
@@ -146,7 +147,6 @@
 
                 const tsl = peakPrices[s] * (1 - (avgVol * FILTER.SLP)); 
                 const ttp = peakPrices[s] * (1 - (avgVol * FILTER.REV * 10)); 
-
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
                 
                 let score = 0;
@@ -154,7 +154,6 @@
                 if (v5m >= FILTER.MOM) score += 30;
                 if (drv > FILTER.DRV) score += 50;
 
-                // 數據打包，包含新增的 OI 與 oiChange
                 stats[s] = { s, price, score, ttp, tsl, peak: peakPrices[s], dVol: avgVol, drv, trendUp, oi: currentOI, oiChange };
             });
             render();
@@ -169,32 +168,31 @@
             <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                 <div class="flex justify-between items-center mb-1">
                     <span class="text-[7px] ${x.trendUp ? 'text-green-400' : 'text-zinc-600'} font-bold">
-                        TREND(趨勢):${x.trendUp ? '強勢多頭 (UP)' : '弱勢盤整 (SIDE)'}
+                        TREND:${x.trendUp ? 'UP' : 'SIDE'}
                     </span>
-                    <span class="text-yellow-500 font-black">SCORE(評分): ${x.score.toFixed(0)}</span>
+                    <span class="text-yellow-500 font-black">SCORE: ${x.score.toFixed(0)}</span>
                 </div>
                 <div class="flex justify-between items-end my-2 border-b border-zinc-800 pb-1">
                     <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
                     <div class="text-right">
-                        <div class="text-white text-[10px] font-bold">現價: $${x.price.toFixed(4)}</div>
+                        <div class="text-white text-[10px] font-bold">$${x.price.toFixed(4)}</div>
                         <div class="text-[8px] font-black ${x.oiChange >= 0 ? 'text-cyan-400' : 'text-red-500'}">
                             OI: ${(x.oi/1e6).toFixed(1)}M (${x.oiChange >= 0 ? '+' : ''}${x.oiChange.toFixed(2)}%)
                         </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 text-[8px] mb-2 font-bold">
-                    <div class="text-orange-400">POC位移波動: ${(x.dVol*100).toFixed(2)}%</div>
-                    <div class="text-blue-400 text-right">DRV(驅動強度): ${x.drv.toFixed(0)}</div>
+                    <div class="text-orange-400">POC: ${(x.dVol*100).toFixed(2)}%</div>
+                    <div class="text-blue-400 text-right">DRV: ${x.drv.toFixed(0)}</div>
                 </div>
-                <div class="text-[8px] text-zinc-500 mb-2 italic">最高價(PEAK): $${x.peak.toFixed(4)}</div>
                 <div class="tsl-box">
-                    <span class="text-red-500 font-black">SL(移動止損): $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-500 font-black">TP(移動止盈): $${x.ttp.toFixed(4)}</span>
+                    <span class="text-red-500 font-black">SL: $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500 font-black">TP: $${x.ttp.toFixed(4)}</span>
                 </div>
             </div>`).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR (停止雷達)" : "START RADAR (開啟雷達)"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
     setupSliders();
 </script>

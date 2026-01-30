@@ -2,38 +2,40 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V12.6.0 | POC & OI FIXED</title>
+    <title>⚡ SNIPER V12.7.0 | PURE OI LOGIC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; }
-        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; animation: blink 1s infinite; }
+        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; }
         .score-70 { border: 2px solid #a855f7; box-shadow: 0 0 15px #a855f7; background: #1e1b4b !important; }
-        .score-40 { border: 2px solid #FFD700; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
-        .log-item { border-left: 3px solid #ff0000; padding: 4px 8px; margin-bottom: 6px; color: #ff9999; font-size: 10px; background: #1a0000; }
+        .log-item { border-left: 3px solid #ff0000; padding: 4px; margin-bottom: 4px; background: #1a0000; font-size: 9px; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
-    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.6.0</h1>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START</button>
+    <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center">
+        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.7.0</h1>
+        <div class="flex gap-4">
+            <input id="manualCoin" type="text" placeholder="手動添加 (e.g. BTC)" class="bg-zinc-900 border border-zinc-700 px-2 py-1 text-white">
+            <button onclick="manualAdd()" class="bg-yellow-600 text-black px-4 py-1 font-bold rounded">ADD</button>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black">START</button>
+        </div>
     </header>
 
-    <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
-        <div class="space-y-1"><span>🌀 SQZ</span><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
-        <div class="space-y-1 text-green-400"><span>🎯 POC</span><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
-        <div class="space-y-1 text-blue-400"><span>🚀 DRV</span><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
-        <div class="space-y-1 text-orange-500"><span>⚡ MOM</span><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
-        <div class="space-y-1 text-pink-500"><span>📉 REV</span><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
-        <div class="space-y-1 text-red-500"><span>🚨 SLP</span><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
+    <div class="bg-zinc-900/50 p-2 border-b border-yellow-900/30 flex justify-around text-zinc-400 font-bold">
+        <span>🌀 SQZ <input type="range" id="i_sqz" class="w-16"></span>
+        <span>🎯 POC <input type="range" id="i_poc" class="w-16"></span>
+        <span>🚀 DRV <input type="range" id="i_drv" class="w-16"></span>
+        <span>⚡ MOM <input type="range" id="i_mom" class="w-16"></span>
+        <span>📉 REV <input type="range" id="i_rev" class="w-16"></span>
+        <span>🚨 SLP <input type="range" id="i_slp" class="w-16"></span>
     </div>
 
     <main class="flex-1 flex overflow-hidden">
-        <aside class="w-72 border-r border-zinc-800 p-2 overflow-y-auto bg-black">
-            <div class="text-red-500 font-bold mb-3 uppercase italic text-[10px] tracking-widest">🔥 90+ Score History</div>
+        <aside class="w-64 border-r border-zinc-800 p-2 overflow-y-auto bg-black text-red-500">
+            <div class="font-bold mb-2 uppercase italic">Elite Log (Score 90+)</div>
             <div id="logs"></div>
         </aside>
         <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -41,117 +43,117 @@
 
 <script>
     let stats = {}, isRunning = false;
+    let pinnedCoins = []; // 存放符合條件的幣種
+    let baseOI = {}, oiHistory = {}; 
     let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90, MOM: 0.008, REV: 0.02, SLP: 1.5 };
 
-    // 核心：抓取 OI (修正 404)
-    async function getOI(symbol) {
-        try {
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
-            const data = await res.json();
-            return parseFloat(data.openInterest).toLocaleString();
-        } catch(e) { return "N/A"; }
-    }
-
-    // 核心：從 1H 成交量高峰計算 POC
-    function getVolumePeakPOC(klines) {
-        let maxVol = 0, peakIdx = 0;
-        klines.forEach((k, i) => {
-            const vol = parseFloat(k[5]);
-            if (vol > maxVol) { maxVol = vol; peakIdx = i; }
-        });
-        const peakK = klines[peakIdx];
-        // 嚴格平均價：(High + Low) / 2
-        return (parseFloat(peakK[2]) + parseFloat(peakK[3])) / 2;
+    // 1. 底層 API 請求函式：嚴格遵守 getOI(symbol)
+    async function getOI(symbol) { 
+        try { 
+            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`); 
+            const data = await res.json(); 
+            return parseFloat(data.openInterest); 
+        } catch(e) { return null; } 
     }
 
     async function scan() {
         if(!isRunning) return;
         try {
+            // 封包 A: 只拿全場價格表
             const res24 = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
             const data24 = await res24.json();
             
-            // 排序找波動最強的前 20 名，減少封包壓力
-            const topList = data24
-                .filter(t => t.symbol.endsWith('USDT'))
-                .sort((a, b) => Math.abs(parseFloat(b.priceChangePercent)) - Math.abs(parseFloat(a.priceChangePercent)))
-                .slice(0, 21);
-
-            for (const t of topList) {
+            for (const t of data24) {
                 const s = t.symbol;
-                
-                // 併發獲取 K 線與 OI (封包化處理)
-                const [kRes, oiVal] = await Promise.all([
-                    fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`).then(r => r.json()),
-                    getOI(s)
-                ]);
+                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) continue;
 
                 const curPrice = parseFloat(t.lastPrice);
-                const pocPrice = getVolumePeakPOC(kRes);
+                const high = parseFloat(t.highPrice);
+                const low = parseFloat(t.lowPrice);
+                const avg = parseFloat(t.weightedAvgPrice);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
 
+                // 計算 POC (量價高峰平均價)
+                const pocPrice = (high + avg) / 2;
+                
+                // 打分邏輯
                 let score = 0;
-                if (curPrice > pocPrice) score += 40; 
+                if (curPrice > pocPrice) score += 40;
                 if (drv > FILTER.DRV) score += 30;
                 if (parseFloat(t.priceChangePercent) > 0) score += 30;
 
-                // 90分紀錄日誌
-                if (score >= 90 && (!stats[s] || stats[s].score < 90)) {
-                    const log = document.getElementById('logs');
-                    const time = new Date().toLocaleTimeString();
-                    log.innerHTML = `<div class="log-item"><b>${time}</b> | ${s}<br>Price: $${curPrice} | SCORE: ${score}</div>` + log.innerHTML;
+                // 2. 建立基準點：當分數達到門檻且不在清單中，才抓一次 baseOI
+                if (score >= 70 && !pinnedCoins.includes(s)) {
+                    pinnedCoins.push(s);
+                    baseOI[s] = await getOI(s);
                 }
 
-                stats[s] = {
-                    s, price: curPrice, score,
-                    poc: pocPrice,
-                    tsl: pocPrice, // 止損對齊成交量高峰
-                    ttp: curPrice + (curPrice - pocPrice), // 對稱止盈
-                    oi: oiVal
-                };
+                // 3. 持續監控與追蹤：針對在清單中的幣種更新 oiHistory
+                if (pinnedCoins.includes(s)) {
+                    const currentOI = await getOI(s);
+                    if (currentOI && baseOI[s]) {
+                        oiHistory[s] = currentOI;
+                        
+                        // 4. 計算 Growth (MOM)
+                        const growth = (oiHistory[s] - baseOI[s]) / baseOI[s];
+                        
+                        // 更新統計數據
+                        stats[s] = {
+                            s, price: curPrice, score, poc: pocPrice,
+                            growth: growth,
+                            tsl: pocPrice,
+                            ttp: curPrice + (curPrice - pocPrice)
+                        };
+
+                        // 90分天價紀錄
+                        if (score >= 90) {
+                            const log = document.getElementById('logs');
+                            log.innerHTML = `<div class="log-item"><b>${new Date().toLocaleTimeString()}</b> ${s}<br>$${curPrice} | MOM: +${(growth*100).toFixed(2)}%</div>` + log.innerHTML;
+                        }
+                    }
+                }
             }
             render();
-        } catch (e) { console.error("Scan Error:", e); }
-        setTimeout(scan, 4000); 
+        } catch (e) { console.error("Scan Error"); }
+        setTimeout(scan, 3000);
+    }
+
+    async function manualAdd() {
+        let s = document.getElementById('manualCoin').value.toUpperCase();
+        if(!s.endsWith('USDT')) s += 'USDT';
+        if(!pinnedCoins.includes(s)) {
+            pinnedCoins.push(s);
+            baseOI[s] = await getOI(s);
+            alert(`${s} 基定基準點成功`);
+        }
     }
 
     function render() {
-        const list = Object.values(stats).sort((a,b) => b.score - a.score);
-        document.getElementById('dashboard').innerHTML = list.map(x => {
-            let colorClass = x.score >= 90 ? 'score-90' : (x.score >= 70 ? 'score-70' : (x.score >= 40 ? 'score-40' : ''));
-            return `
-            <div class="card p-4 rounded-lg ${colorClass}">
-                <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
-                    <div class="text-right">
-                        <span class="text-yellow-500 font-black text-lg">★ ${x.score}</span>
-                        <div class="text-[8px] text-zinc-500">OI: ${x.oi}</div>
-                    </div>
+        const dashboard = document.getElementById('dashboard');
+        const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 15);
+        dashboard.innerHTML = list.map(x => `
+            <div class="card p-4 rounded-lg ${x.score >= 90 ? 'score-90' : (x.score >= 70 ? 'score-70' : '')}">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-black text-white">${x.s.replace('USDT','')}</h2>
+                    <span class="text-yellow-500 font-black">SCORE: ${x.score}</span>
                 </div>
-                <div class="grid grid-cols-2 gap-y-1 mb-3 text-[9px] font-bold">
-                    <div class="text-zinc-400">PRICE: <span class="text-white">$${x.price.toFixed(4)}</span></div>
-                    <div class="text-zinc-400 text-right">POC: <span class="text-green-400">$${x.poc.toFixed(4)}</span></div>
+                <div class="flex justify-between text-[11px] mb-2 font-bold">
+                    <span>現價: $${x.price.toFixed(4)}</span>
+                    <span class="text-green-400">OI增幅: +${(x.growth * 100).toFixed(2)}%</span>
                 </div>
-                <div class="border-t border-zinc-800 pt-2 flex justify-between font-mono text-[9px] font-black">
-                    <div class="text-red-500 uppercase tracking-tighter">SL: $${x.tsl.toFixed(4)}</div>
-                    <div class="text-green-500 uppercase tracking-tighter">TP: $${x.ttp.toFixed(4)}</div>
+                <div class="border-t border-zinc-800 pt-2 flex justify-between text-red-500 font-bold">
+                    <span>TSL: $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500">TTP: $${x.ttp.toFixed(4)}</span>
                 </div>
-            </div>`;
-        }).join('');
+            </div>
+        `).join('');
     }
 
     function toggleSystem() { 
         isRunning = !isRunning; 
         document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; 
-        document.getElementById('sysBtn').className = isRunning ? "bg-red-600 text-white px-8 py-1 rounded font-black" : "bg-blue-600 text-white px-8 py-1 rounded font-black";
         if(isRunning) scan(); 
     }
-    
-    document.querySelectorAll('input[type=range]').forEach(el => {
-        el.oninput = (e) => {
-            const key = e.target.id.replace('i_', '').toUpperCase();
-            FILTER[key] = parseFloat(e.target.value) / 1000;
-        };
-    });
 </script>
 </body>
 </html>

@@ -122,7 +122,6 @@
                 
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                // --- 方案 C 核心參數 ---
                 const mid24h = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
                 const m25 = (mid24h * 0.7) + (avgPrice * 0.3);
                 if (!m7History[s]) m7History[s] = [];
@@ -135,24 +134,22 @@
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
                 const v5m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
 
-                // --- 【核心修改：POC 密集區起始波動邏輯】 ---
-                // 1. 以 POC 滑桿設定值作為 15K 成交密集區的起始參考點
+                // --- 【核心邏輯修正：跟隨現價的動態止盈】 ---
                 const pocStartPrice = avgPrice * (1 - FILTER.POC);
+                // 計算波動率：POC位移權重 + 5M爆發權重
+                const dynamicVolatility = (maSqz * 0.2) + (Math.abs(price - pocStartPrice) / pocStartPrice * 0.6) + (Math.abs(v5m) * 0.2);
+
+                // SL: 最高價回撤，倍數收緊，底線保命
+                let tsl = peakPrices[s] * (1 - (dynamicVolatility * 1.3));
+                tsl = Math.max(tsl, (drvScore > 90 ? avgPrice * 0.998 : m25 * 0.993));
+
+                // TP: 必須保證在「現價與最高價之間」
+                // 邏輯：最高價回撤 0.4 倍波動，但最低不能低於現價的 99.6% (貼身保利)
+                let ttp = Math.max(price * 0.996, peakPrices[s] * (1 - (dynamicVolatility * 0.4)));
                 
-                // 2. 計算從 POC 起始點到現價的平均波動離散 (Volatility)
-                // 結合了 MA 振幅、POC 距離位移、以及 5 分鐘即時噴發動能
-                const dynamicVolatility = (maSqz * 0.3) + (Math.abs(price - pocStartPrice) / pocStartPrice * 0.5) + (Math.abs(v5m) * 0.2);
+                // 防呆：如果 TP 還是算太低，強制拉到現價上方 0.2%
+                if (ttp <= tsl) ttp = price * 1.002;
 
-                // 3. 根據計算出的波動率計算移動止盈損
-                // 止損 (SL): 最高點回撤「1.6 倍動態波動」，且底線不破 M7/M25
-                let tsl = peakPrices[s] * (1 - (dynamicVolatility * 1.6));
-                tsl = Math.max(tsl, (drvScore > 90 ? avgPrice * 0.997 : m25 * 0.992));
-
-                // 止盈 (TP): 最高點回撤「0.7 倍動態波動」，實現動態保利
-                // 使用 Math.max 確保 TP 永遠落在 SL 之上（防呆）
-                let ttp = Math.max(tsl * 1.005, peakPrices[s] * (1 - (dynamicVolatility * 0.7)));
-
-                // --- 評分系統 ---
                 let score = 0, isVolatile = v5m >= 0.05;
                 if (isVolatile) score += 50;
                 if (maSqz < 0.008) { 

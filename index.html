@@ -2,51 +2,62 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ 小幫手 X-TREME V15.1</title>
+    <title>⚡ 小幫手 X-TREME V15.3 | 定選戰鬥端</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@900&family=JetBrains+Mono:wght@800&display=swap');
         body { background: #050505; color: #e0e0e0; font-family: 'JetBrains Mono', 'Noto Sans TC', sans-serif; overflow: hidden; }
         .bg-grid { background-image: radial-gradient(#1a1a1a 1px, transparent 1px); background-size: 25px 25px; }
         
-        .card { background: rgba(12, 12, 12, 0.98); border: 1px solid #222; position: relative; }
+        .card { background: rgba(12, 12, 12, 0.98); border: 1px solid #222; position: relative; transition: 0.2s; }
         .high-score { border: 2px solid #ff4444 !important; box-shadow: 0 0 20px rgba(255, 68, 68, 0.3); }
+        .is-pinned { border-color: #3b82f6 !important; background: rgba(0, 30, 60, 0.9) !important; }
+
+        /* 釘選按鈕 */
+        .pin-btn { cursor: pointer; position: absolute; top: 8px; left: 8px; z-index: 10; font-size: 14px; opacity: 0.3; transition: 0.2s; }
+        .pin-btn:hover { opacity: 1; }
+        .pinned { opacity: 1 !important; color: #3b82f6; text-shadow: 0 0 10px #3b82f6; }
+
+        /* 搜尋與過濾 */
+        .search-input { background: #111; border: 1px solid #333; color: #fff; font-size: 12px; padding: 5px 15px; border-radius: 4px; outline: none; }
+        .search-input:focus { border-color: #ff4444; }
 
         /* 標籤 */
         .tag { font-size: 8px; padding: 1px 4px; border-radius: 2px; font-weight: 900; margin-right: 2px; }
         .tag-vld { background: #064e3b; color: #4ade80; }
-        .tag-tight { background: #1a1a1a; color: #666; border: 1px solid #333; }
         .tag-active-tight { background: #1e3a8a; color: #60a5fa; border: 1px solid #3b82f6; }
         .tag-em { background: #4c1d95; color: #c084fc; }
         .tag-yao { background: #78350f; color: #fbbf24; animation: blink 1s infinite; }
         .tag-burst { background: #450a0a; color: #f87171; }
 
-        /* 策略燈號 */
-        .strat-light { font-size: 8px; font-weight: 900; margin-right: 6px; color: #222; transition: 0.3s; }
-        .light-poc { color: #f87171 !important; text-shadow: 0 0 8px #f87171; }
-        .light-slp { color: #fbbf24 !important; text-shadow: 0 0 8px #fbbf24; }
-        .light-sqz { color: #60a5fa !important; text-shadow: 0 0 8px #60a5fa; }
+        .strat-light { font-size: 8px; font-weight: 900; margin-right: 6px; color: #222; }
+        .light-poc { color: #f87171 !important; }
+        .light-slp { color: #fbbf24 !important; }
+        .light-sqz { color: #60a5fa !important; }
 
         @keyframes blink { 50% { opacity: 0.5; } }
     </style>
 </head>
 <body class="h-screen flex flex-col bg-grid">
 
-    <nav class="bg-black p-2 border-b border-zinc-800 grid grid-cols-5 gap-6">
-        <div class="flex flex-col"><span class="text-[9px] font-black text-blue-400">🌀 SQZ (蓄勢)</span><input type="range" id="i_sqz" min="1" max="50" value="15" class="accent-blue-500"></div>
-        <div class="flex flex-col"><span class="text-[9px] font-black text-red-400">🎯 POC (突破)</span><input type="range" id="i_poc" min="1" max="100" value="12" class="accent-red-500"></div>
-        <div class="flex flex-col"><span class="text-[9px] font-black text-yellow-400">⚡ SLP (突變)</span><input type="range" id="i_slp" min="-50" max="50" value="-20" class="accent-yellow-500"></div>
-        <div class="flex flex-col"><span class="text-[9px] font-black text-cyan-400">🚀 DRV (真空)</span><input type="range" id="i_drv" min="10" max="150" value="85" class="accent-cyan-500"></div>
-        <div class="flex flex-col"><span class="text-[9px] font-black text-orange-400">⚡ MOM (動量)</span><input type="range" id="i_mom" min="1" max="200" value="120" class="accent-orange-500"></div>
-    </nav>
+    <header class="bg-black border-b-2 border-zinc-900 p-3 flex justify-between items-center gap-4">
+        <h1 class="text-2xl font-black italic tracking-tighter text-white">Helper <span class="text-red-600">X-TREME</span></h1>
+        
+        <div class="flex flex-1 max-w-2xl gap-2">
+            <input type="text" id="searchBar" placeholder="🔍 搜尋幣名..." class="search-input flex-1" oninput="render()">
+            <button id="filterPinned" onclick="toggleFilterPinned()" class="px-4 py-1 bg-zinc-800 text-zinc-400 text-xs font-black rounded hover:bg-blue-900 hover:text-white transition">⭐ 僅看定選</button>
+        </div>
 
-    <div class="bg-zinc-950 p-2 border-b border-zinc-800 flex items-center gap-3">
-        <button onclick="applyMode('ambush')" class="px-4 py-1 border border-green-900 text-green-500 text-[10px] font-black rounded hover:bg-green-900/20">週末埋伏</button>
-        <button onclick="applyMode('hunt')" class="px-4 py-1 border border-red-900 text-red-500 text-[10px] font-black rounded hover:bg-red-900/20">強勢獵殺</button>
-        <button onclick="applyMode('vio')" class="px-4 py-1 border border-purple-900 text-purple-500 text-[10px] font-black rounded hover:bg-purple-900/20">暴力異動</button>
-        <div class="flex-1"></div>
-        <button id="sysBtn" onclick="toggleSystem()" class="px-10 py-1 bg-white text-black text-[10px] font-black rounded uppercase">啟動系統</button>
-    </div>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-white text-black px-8 py-1.5 rounded-sm font-black hover:bg-red-600 hover:text-white text-xs italic uppercase">啟動掃描</button>
+    </header>
+
+    <nav class="bg-zinc-950 px-5 py-2 border-b border-zinc-800 grid grid-cols-5 gap-8">
+        <div class="flex flex-col"><span class="text-[9px] font-black text-blue-400">🌀 SQZ</span><input type="range" id="i_sqz" min="1" max="50" value="15" class="accent-blue-500"></div>
+        <div class="flex flex-col"><span class="text-[9px] font-black text-red-400">🎯 POC</span><input type="range" id="i_poc" min="1" max="100" value="12" class="accent-red-500"></div>
+        <div class="flex flex-col"><span class="text-[9px] font-black text-yellow-400">⚡ SLP</span><input type="range" id="i_slp" min="-50" max="50" value="-20" class="accent-yellow-500"></div>
+        <div class="flex flex-col"><span class="text-[9px] font-black text-cyan-400">🚀 DRV</span><input type="range" id="i_drv" min="10" max="150" value="85" class="accent-cyan-500"></div>
+        <div class="flex flex-col"><span class="text-[9px] font-black text-orange-400">⚡ MOM</span><input type="range" id="i_mom" min="1" max="200" value="120" class="accent-orange-500"></div>
+    </nav>
 
     <div class="flex flex-1 overflow-hidden">
         <main class="flex-1 p-3 overflow-y-auto">
@@ -54,18 +65,33 @@
         </main>
 
         <aside class="w-80 border-l border-zinc-800 bg-black/80 p-3 flex flex-col">
-            <div class="text-[10px] font-black mb-2 text-red-500 italic border-b border-zinc-800 pb-1">⚔️ 90分戰鬥封印紀錄</div>
+            <div class="text-[10px] font-black mb-2 text-red-500 italic border-b border-zinc-800 pb-1 flex justify-between uppercase">
+                <span>⚔️ 90分戰鬥封印紀錄</span>
+                <span id="log-count">0</span>
+            </div>
             <div id="combat-log" class="flex-1 overflow-y-auto pr-1"></div>
         </aside>
     </div>
 
 <script>
-    let stats = {}, isRunning = false, loggedAssets = new Set();
+    let stats = {}, isRunning = false;
+    let pinnedAssets = new Set(JSON.parse(localStorage.getItem('pinnedAssets') || '[]'));
+    let loggedAssets = new Set();
+    let onlyShowPinned = false;
 
-    function applyMode(mode) {
-        const p = { ambush:[10, 5, -5, 40, 80], hunt:[15, 30, -25, 110, 150], vio:[25, 15, -40, 140, 180] };
-        const keys = ['i_sqz','i_poc','i_slp','i_drv','i_mom'];
-        p[mode].forEach((v, i) => document.getElementById(keys[i]).value = v);
+    function togglePin(symbol) {
+        if (pinnedAssets.has(symbol)) pinnedAssets.delete(symbol);
+        else pinnedAssets.add(symbol);
+        localStorage.setItem('pinnedAssets', JSON.stringify([...pinnedAssets]));
+        render();
+    }
+
+    function toggleFilterPinned() {
+        onlyShowPinned = !onlyShowPinned;
+        const btn = document.getElementById('filterPinned');
+        btn.classList.toggle('bg-blue-600', onlyShowPinned);
+        btn.classList.toggle('text-white', onlyShowPinned);
+        render();
     }
 
     async function scan() {
@@ -89,7 +115,7 @@
 
                 const isPocHit = Math.abs(chg) > uPoc;
                 const isSqzHit = sqzVal < uSqz;
-                const isSlpHit = chg < uSlp; // 突變邏輯
+                const isSlpHit = chg < uSlp;
 
                 let score = (isSqzHit ? 40 : 10) + (drvVal > 80 ? 30 : 0) + (chg > 2 ? 30 : 0);
 
@@ -97,12 +123,13 @@
                     const log = document.getElementById('combat-log');
                     log.innerHTML = `<div class="p-2 border-b border-zinc-800 text-[10px]"><b class="text-white">${t.symbol}</b> <span class="text-red-500 float-right">${score}分</span><br>價格: ${price}</div>` + log.innerHTML;
                     loggedAssets.add(t.symbol);
+                    document.getElementById('log-count').innerText = loggedAssets.size;
                 }
 
                 stats[t.symbol] = { 
                     s: t.symbol, price, chg, score, drv: drvVal, sqz: sqzVal.toFixed(2), 
                     isPocHit, isSqzHit, isSlpHit, isYao: (chg > 4 && bChg < -0.5),
-                    sl: price * 0.985, tp: price * 1.05
+                    sl: price * 0.98, tp: price * 1.05
                 };
             });
             render();
@@ -112,16 +139,26 @@
 
     function render() {
         const dashboard = document.getElementById('dashboard');
-        const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 16);
+        const filterText = document.getElementById('searchBar').value.toUpperCase();
+        
+        const list = Object.values(stats)
+            .filter(x => x.s.includes(filterText))
+            .filter(x => !onlyShowPinned || pinnedAssets.has(x.s))
+            .sort((a,b) => {
+                if (pinnedAssets.has(a.s) && !pinnedAssets.has(b.s)) return -1;
+                if (!pinnedAssets.has(a.s) && pinnedAssets.has(b.s)) return 1;
+                return b.score - a.score;
+            })
+            .slice(0, 24);
+
         dashboard.innerHTML = list.map(x => `
-            <div class="card p-2 rounded-sm ${x.score >= 90 ? 'high-score' : ''}">
-                <div class="flex justify-between items-start">
+            <div class="card p-2 rounded-sm ${x.score >= 90 ? 'high-score' : ''} ${pinnedAssets.has(x.s) ? 'is-pinned' : ''}">
+                <span class="pin-btn ${pinnedAssets.has(x.s) ? 'pinned' : ''}" onclick="togglePin('${x.s}')">📌</span>
+                <div class="flex justify-between items-start ml-5">
                     <div class="flex flex-wrap gap-y-1">
                         <span class="tag tag-vld">M7_VLD</span>
                         <span class="tag ${x.isSqzHit ? 'tag-active-tight' : 'tag-tight'}">TIGHT</span>
                         <span class="tag tag-em">EM</span>
-                        ${x.drv > 80 ? '<span class="tag tag-burst">🚀 真空噴發</span>' : ''}
-                        ${x.isYao ? '<span class="tag tag-yao">⚠️ 妖幣偵測</span>' : ''}
                     </div>
                     <div class="text-right">
                         <div class="text-yellow-500 font-black italic text-[11px]">SCORE: ${x.score}</div>
@@ -129,31 +166,27 @@
                     </div>
                 </div>
 
-                <div class="flex justify-between items-center my-1">
+                <div class="flex justify-between items-center my-1 ml-5">
                     <h2 class="text-xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
                     <span class="text-[10px] font-bold ${x.chg >= 0 ? 'text-green-500' : 'text-red-500'}">${x.chg}%</span>
                 </div>
 
-                <div class="flex gap-2 mb-1">
+                <div class="flex gap-2 mb-1 ml-5">
                     <span class="strat-light ${x.isPocHit ? 'light-poc' : ''}">POC</span>
                     <span class="strat-light ${x.isSlpHit ? 'light-slp' : ''}">SLP</span>
                     <span class="strat-light ${x.isSqzHit ? 'light-sqz' : ''}">SQZ</span>
                 </div>
 
-                <div class="bg-zinc-900 p-1 text-[8px] grid grid-cols-2 gap-x-2 text-zinc-500 font-bold border border-zinc-800">
+                <div class="bg-zinc-900/50 p-1 text-[8px] grid grid-cols-2 gap-x-2 text-zinc-500 font-bold ml-5">
                     <span>SQZ: ${x.sqz}%</span>
-                    <span class="text-right text-cyan-500">DRV: ${x.drv.toFixed(0)}</span>
-                </div>
-
-                <div class="mt-2 border-t border-zinc-800 pt-1 flex justify-between text-[7px] text-zinc-600 font-black">
-                    <span>SL_TRAIL: ${x.sl.toFixed(4)}</span>
-                    <span class="text-green-900">TP_TRAIL: ${x.tp.toFixed(4)}</span>
+                    <span class="text-right text-cyan-400">DRV: ${x.drv.toFixed(0)}</span>
                 </div>
             </div>
         `).join('');
     }
 
     function toggleSystem() { isRunning = !isRunning; scan(); }
+    function applyMode(mode) { /* 之前的模式邏輯... */ }
 </script>
 </body>
 </html>

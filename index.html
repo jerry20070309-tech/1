@@ -2,62 +2,73 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER X-TREME | R-1POC FULL MODE</title>
+    <title>⚡ SNIPER V11.8.1 | R-1POC MODE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; cursor: pointer; opacity: 0.7; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; cursor: pointer; }
         
-        /* --- UI 分數亮燈邏輯 --- */
-        .score-60 { border-color: #3b82f6 !important; background: #081221 !important; opacity: 0.9; }
-        .score-80 { border-color: #f97316 !important; background: #241205 !important; opacity: 1; }
-        .score-90 { 
-            border: 2px solid #ff0000 !important; 
-            background: #2a0000 !important; 
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.6); 
-            animation: blink 0.6s infinite; 
-            opacity: 1;
-        }
-        .is-pinned { border: 2px solid #3b82f6 !important; opacity: 1; }
-
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        /* UI 分數亮燈邏輯 - 嚴格對應 R-1POC 分數 */
+        .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
+        .warn-card { border: 2px solid #f97316; background: #241205 !important; }
+        .info-card { border: 1px solid #3b82f6; background: #081221 !important; }
+        .base-card { border: 1px solid #1a1a1a; opacity: 0.6; }
+        
+        .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; opacity: 1 !important; }
+        .tag-active { background: #22c55e !important; color: #000 !important; }
+        .tag-tight { background: #3b82f6 !important; color: #fff !important; }
+        .tag-poc { background: #16a34a !important; color: #fff !important; font-weight: 800; }
+        .tag-vlt { background: #8b5cf6 !important; color: #fff !important; }
+        .tag-pattern { border: 1px solid #FFD700; color: #FFD700; padding: 0 4px; border-radius: 2px; font-size: 8px; }
+        .tsl-box { border-top: 1px dashed #333; margin-top: 4px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 7px; color: #888; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
         input[type=range] { accent-color: #FFD700; }
-        .tsl-box { border-top: 1px dashed #333; margin-top: 4px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
+        .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; transition: 0.2s; }
+        .btn-preset:hover { background: #333; color: #fff; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER <span class="text-white">R-1POC</span></h1>
-            <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-zinc-900 border border-zinc-700 text-xs px-2 py-1 rounded w-32 text-white" oninput="render()">
-            <button onclick="applyPreset('Ambush')" class="bg-zinc-800 text-blue-400 px-3 py-1 rounded text-[9px] font-bold">週末埋伏</button>
-            <button onclick="applyPreset('Hunt')" class="bg-zinc-800 text-red-400 px-3 py-1 rounded text-[9px] font-bold">強勢獵殺</button>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.8 <span class="text-white">R-1POC</span></h1>
+            <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
+                <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
+                <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
+            </div>
+            <div class="flex gap-2 ml-4">
+                <button onclick="applyPreset('Ambush')" class="btn-preset text-blue-400 border-blue-900">週末埋伏</button>
+                <button onclick="applyPreset('Hunt')" class="btn-preset text-red-400 border-red-900">強勢獵殺</button>
+                <button onclick="applyPreset('Spike')" class="btn-preset text-purple-400 border-purple-900">暴力異動</button>
+            </div>
         </div>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-10 py-1 rounded font-black hover:bg-blue-500 italic uppercase">Start Radar</button>
+        <div class="flex gap-4 text-[9px]">
+            <div id="klineStatus" class="bg-zinc-800 px-3 py-1 rounded text-white flex items-center">等待對齊...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
+        </div>
     </header>
 
-    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-5 gap-6 uppercase font-bold">
+    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-5 gap-4 items-center uppercase font-bold text-zinc-400">
         <div class="space-y-1">
-            <div class="flex justify-between text-blue-400"><span>🌀 SQZ (壓縮)</span><span id="v_sqz">1.5%</span></div>
-            <input type="range" id="i_sqz" min="5" max="50" value="15" class="w-full">
+            <div class="flex justify-between text-yellow-500"><span>🌀 SQZ (蓄勢)</span><span id="v_sqz">1.2%</span></div>
+            <input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-green-400"><span>🎯 POC (突破)</span><span id="v_poc">1.2%</span></div>
-            <input type="range" id="i_poc" min="1" max="100" value="12" class="w-full">
+            <div class="flex justify-between text-green-400"><span>🎯 POC (突破)</span><span id="v_poc">1.1%</span></div>
+            <input type="range" id="i_poc" min="1" max="100" value="11" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-yellow-500"><span>⚡ SLP (突變)</span><span id="v_slp">-2.0%</span></div>
-            <input type="range" id="i_slp" min="5" max="100" value="20" class="w-full">
+            <div class="flex justify-between text-red-500"><span>🚨 SLP (突變)</span><span id="v_slp">-15%</span></div>
+            <input type="range" id="i_slp" min="5" max="50" value="15" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-cyan-400"><span>🚀 DRV (真空)</span><span id="v_drv">85</span></div>
-            <input type="range" id="i_drv" min="10" max="150" value="85" class="w-full">
+            <div class="flex justify-between text-blue-400"><span>🚀 DRV (真空)</span><span id="v_drv">90</span></div>
+            <input type="range" id="i_drv" min="10" max="150" value="90" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-orange-500"><span>⚡ MOM (動量)</span><span id="v_mom">1.0%</span></div>
-            <input type="range" id="i_mom" min="1" max="100" value="10" class="w-full">
+            <div class="flex justify-between text-orange-500"><span>⚡ MOM (動量)</span><span id="v_mom">0.8%</span></div>
+            <input type="range" id="i_mom" min="1" max="50" value="8" class="w-full">
         </div>
     </div>
 
@@ -66,84 +77,153 @@
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
         </main>
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
-            <div class="p-3 border-b border-zinc-800 text-red-500 font-bold uppercase">戰鬥日誌 (異動紀錄)</div>
+            <div class="p-3 border-b border-zinc-800 text-red-500 font-bold flex justify-between uppercase">
+                <span>戰鬥日誌 (異動偵測)</span>
+                <span id="timerDisplay" class="text-zinc-600">OFFLINE</span>
+            </div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
         </aside>
     </div>
 
 <script>
+    const CONFIG = {
+        PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4",
+        PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw",
+        EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'],
+        COOLDOWN: 600000 
+    };
+
     let stats = {}, pinned = new Set(), isRunning = false;
-    let lastPushTime = {};
+    let coinHistory = {}, priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1;
+    let m7History = {}, signalCount = {}; 
+    let FILTER = { SQZ: 0.012, POC: 0.011, SLP: -0.15, DRV: 90, MOM: 0.008 };
 
     function applyPreset(type) {
-        const p = (type === 'Ambush') ? [10, 5, 10, 40, 5] : [15, 12, 25, 90, 15];
-        ['i_sqz','i_poc','i_slp','i_drv','i_mom'].forEach((id, i) => {
-            document.getElementById(id).value = p[i];
+        const presets = {
+            'Ambush': { sqz: 8, poc: 5, slp: 5, drv: 110, mom: 5 },
+            'Hunt': { sqz: 15, poc: 12, slp: 20, drv: 85, mom: 12 },
+            'Spike': { sqz: 25, poc: 20, slp: 35, drv: 60, mom: 25 }
+        };
+        const p = presets[type];
+        document.getElementById('i_sqz').value = p.sqz;
+        document.getElementById('i_poc').value = p.poc;
+        document.getElementById('i_slp').value = p.slp;
+        document.getElementById('i_drv').value = p.drv;
+        document.getElementById('i_mom').value = p.mom;
+        ['i_sqz','i_poc','i_slp','i_drv','i_mom'].forEach(id => {
             document.getElementById(id).dispatchEvent(new Event('input'));
         });
     }
 
-    // 更新數值顯示
-    ['i_sqz','i_poc','i_slp','i_drv','i_mom'].forEach(id => {
-        document.getElementById(id).oninput = (e) => {
-            const val = e.target.value;
-            const vid = id.replace('i_', 'v_');
-            document.getElementById(vid).innerText = (id==='i_drv' ? val : (val/10).toFixed(1)) + (id==='i_drv' ? '' : '%');
-            if (isRunning) render();
-        };
-    });
+    const setupSliders = () => {
+        const binds = [
+            {id:'i_sqz', vid:'v_sqz', key:'SQZ', div:1000, suffix:'%'},
+            {id:'i_poc', vid:'v_poc', key:'POC', div:1000, suffix:'%'},
+            {id:'i_slp', vid:'v_slp', key:'SLP', div:100, prefix:'-'},
+            {id:'i_drv', vid:'v_drv', key:'DRV', div:1},
+            {id:'i_mom', vid:'v_mom', key:'MOM', div:1000, suffix:'%'}
+        ];
+        binds.forEach(b => {
+            document.getElementById(b.id).oninput = (e) => {
+                let v = parseFloat(e.target.value);
+                FILTER[b.key] = (b.key === 'SLP' ? -(v/100) : v / b.div);
+                document.getElementById(b.vid).innerText = (b.prefix || '') + (b.key === 'DRV' ? v : (v/10).toFixed(1)) + (b.suffix || '');
+                if (isRunning) render();
+            };
+        });
+    };
 
     async function scan() {
         if(!isRunning) return;
         try {
-            const [tRes, bRes] = await Promise.all([
+            const [tRes, pRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
-                fetch('https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=BTCUSDT')
+                fetch('https://fapi.binance.com/fapi/v1/premiumIndex')
             ]);
             const tickers = await tRes.json();
-            const btc = await bRes.json();
-            const bChg = parseFloat(btc.priceChangePercent);
+            const premiums = await pRes.json();
+            const premiumMap = Object.fromEntries(premiums.map(p => [p.symbol, p]));
 
-            const uSqz = document.getElementById('i_sqz').value / 10;
-            const uPoc = document.getElementById('i_poc').value / 10;
-            const uSlp = -(document.getElementById('i_slp').value / 10);
-            const uDrv = document.getElementById('i_drv').value;
+            const now = new Date();
+            if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
+                lastSnapMin = now.getMinutes();
+                tickers.forEach(t => { priceSnapshots[t.symbol] = parseFloat(t.lastPrice); });
+                document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 5M對齊`;
+            }
 
             tickers.forEach(t => {
                 const s = t.symbol;
-                if (!s.endsWith('USDT') || s.startsWith('BTC')) return;
+                if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) return;
 
                 const price = parseFloat(t.lastPrice);
-                const chg = parseFloat(t.priceChangePercent);
-                const high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
+                const avgPrice = parseFloat(t.weightedAvgPrice); 
+                const fund = parseFloat(premiumMap[s]?.lastFundingRate || 0);
                 const vol = parseFloat(t.quoteVolume);
                 
-                // R-1POC 計算
-                const sqzVal = ((high - low) / price) * 100;
-                const drvVal = Math.min(100, (Math.abs(chg) / (vol / 1e8)) * 15);
-                
-                const isPoc = Math.abs(chg) > uPoc;
-                const isSqz = sqzVal < uSqz;
-                const isSlp = chg < uSlp;
-                const isYao = (chg > 4 && bChg < -0.5);
+                const mid24h = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
+                const m25 = (mid24h * 0.7) + (avgPrice * 0.3);
 
-                // --- 評分系統 ---
+                const oldPrice = priceSnapshots[s] || price;
+                const v5m = (price - oldPrice) / oldPrice;
+                const isVolatile = v5m >= 0.05; 
+
+                if (!m7History[s]) m7History[s] = [];
+                m7History[s].push(avgPrice);
+                if (m7History[s].length > 10) m7History[s].shift();
+
+                const m7Slope = m7History[s].length > 1 ? avgPrice > m7History[s][0] : false;
+                const m7Distance = (price - avgPrice) / avgPrice;
+                const passStage1 = price > (avgPrice * 1.002); 
+                const passStage2 = m7Slope;
+                const passStage3 = m7Distance < 0.08; 
+
+                if (!signalCount[s]) signalCount[s] = 0;
+                if (passStage1 && passStage2 && passStage3) {
+                    signalCount[s]++;
+                } else {
+                    signalCount[s] = 0;
+                }
+                const isAboveM7Filtered = signalCount[s] >= 3;
+
+                if (!coinHistory[s]) coinHistory[s] = [];
+                coinHistory[s].push(fund);
+                if (coinHistory[s].length > 30) coinHistory[s].shift();
+
+                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
+                const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
+                const slope = coinHistory[s].length >= 30 ? (fund - coinHistory[s][0]) / Math.abs(coinHistory[s][0]) : 0;
+
+                const isTight = Math.abs(price - avgPrice) / avgPrice < 0.003;
+                const isAboveM99 = parseFloat(t.priceChangePercent) > 0;
+                const isPocOk = Math.abs(parseFloat(t.priceChangePercent)) / 100 >= FILTER.POC;
+
+                // --- R-1POC 評分邏輯注入 ---
                 let score = 0;
-                if (isSqz) score += 40;
-                if (isPoc) score += 30;
-                if (drvVal >= uDrv) score += 30;
-                if (isYao) score += 10;
-                score = Math.min(100, score);
+                if (maSqz <= FILTER.SQZ) score += 40;     // SQZ 權重 40
+                if (isPocOk) score += 30;                 // POC 權重 30
+                if (drvScore >= FILTER.DRV) score += 30;  // DRV 權重 30
+                if (isVolatile) score += 10;              // 異常波動補償 10
 
-                // --- 止盈止損 (新版邏輯) ---
-                const tsl = price * 0.982; // 守 1.8%
-                const ttp = drvVal > 80 ? price * 1.08 : price * 1.05; // 真空期目標 8%，其餘 5%
+                let patterns = [];
+                if (maSqz < 0.006) patterns.push("🌀彈簧吸籌");
+                if (drvScore > 95) patterns.push("🚀真空噴發");
+                if (isVolatile && vol > 1e7) patterns.push("🔥妖幣放量");
 
-                stats[s] = { s, price, chg, score, sqzVal, drvVal, isPoc, isSqz, isSlp, isYao, tsl, ttp };
+                let tsl, tslMode;
+                if (drvScore > 90) {
+                    tsl = avgPrice * 0.997; 
+                    tslMode = "M7_TIGHT";
+                } else {
+                    tsl = m25 * 0.992; 
+                    tslMode = "M25_SAFE";
+                }
+                let ttp = drvScore > 90 ? price * (1 + (v5m * 2)) : price * 1.05;
 
-                if (score >= 90 && (!lastPushTime[s] || Date.now() - lastPushTime[s] > 600000)) {
-                    addLog(s, chg, score);
+                stats[s] = { s, price, fund, maSqz, drvScore, slope, isAboveM7: isAboveM7Filtered, isAboveM99, isTight, isPocOk, isVolatile, v5m, score, patterns, ttp, tsl, tslMode };
+
+                if ((score >= 90 || isVolatile) && (!lastPushTime[s] || Date.now() - lastPushTime[s] > CONFIG.COOLDOWN)) {
                     lastPushTime[s] = Date.now();
+                    addLog(s, v5m, score, isVolatile ? 2 : 1);
                 }
             });
             render();
@@ -153,65 +233,67 @@
 
     function render() {
         const dashboard = document.getElementById('dashboard');
-        const search = document.getElementById('searchInput').value.toUpperCase();
-        
-        const list = Object.values(stats)
-            .filter(x => x.s.includes(search))
-            .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
+        const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
         
         dashboard.innerHTML = list.slice(0, 24).map(x => {
-            // 動態取得 UI 顏色 Class
-            let colorClass = "";
-            if (x.score >= 90) colorClass = "score-90";
-            else if (x.score >= 80) colorClass = "score-80";
-            else if (x.score >= 60) colorClass = "score-60";
+            // UI 亮燈連動分數
+            let statusClass = "base-card";
+            if (x.score >= 90) statusClass = "hunt-card";      // 90分以上 紅燈閃爍
+            else if (x.score >= 80) statusClass = "warn-card"; // 80分以上 橘燈
+            else if (x.score >= 60) statusClass = "info-card"; // 60分以上 藍燈
 
             return `
-                <div class="card p-3 rounded-lg ${colorClass} ${pinned.has(x.s)?'is-pinned':''}" onclick="togglePin('${x.s}')">
+                <div class="card p-3 rounded-lg ${statusClass} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                     <div class="flex justify-between items-start mb-1">
                         <div class="flex gap-1 flex-wrap max-w-[70%]">
-                            <span class="px-1 rounded bg-zinc-800 text-zinc-400">M7_VLD</span>
-                            <span class="px-1 rounded ${x.isSqz ? 'bg-green-600 text-white' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
-                            ${x.isYao ? '<span class="bg-purple-900 text-purple-200 px-1 rounded text-[8px]">YAO</span>' : ''}
-                            ${x.drvVal > 85 ? '<span class="bg-red-900 text-red-200 px-1 rounded text-[8px]">DRV</span>' : ''}
+                            <span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7_VLD</span>
+                            <span class="px-1 rounded ${x.maSqz <= FILTER.SQZ ? 'tag-tight' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
+                            <span class="px-1 rounded ${x.isVolatile ? 'tag-vlt' : 'hidden'}">SPIKE +${(x.v5m*100).toFixed(1)}%</span>
+                            ${x.patterns.map(p => `<span class="tag-pattern">${p}</span>`).join('')}
                         </div>
-                        <span class="text-xs font-black text-yellow-500 italic">SC: ${x.score}</span>
+                        <span class="text-xs font-black text-yellow-500">SC: ${x.score.toFixed(0)}</span>
                     </div>
-                    <div class="flex justify-between items-center mt-2">
-                        <h2 class="text-2xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
+                    <div class="flex justify-between items-center mt-1">
+                        <h2 class="text-xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
                         <div class="text-right">
-                            <div class="${x.chg >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${x.chg}%</div>
+                            <div class="text-red-500 font-bold">${(x.fund*100).toFixed(4)}%</div>
                             <div class="text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-1 mt-2 mb-2 font-bold text-zinc-400">
-                        <div class="bg-black p-1 border border-zinc-800">SQZ: ${x.sqzVal.toFixed(2)}%</div>
-                        <div class="bg-black p-1 border border-zinc-800 text-right text-cyan-400">DRV: ${x.drvVal.toFixed(0)}</div>
+                    <div class="grid grid-cols-2 gap-1 mt-2 mb-2 text-[8px] font-bold text-zinc-400">
+                        <div class="bg-black p-1 border border-zinc-800">SQZ: ${(x.maSqz*100).toFixed(2)}%</div>
+                        <div class="bg-black p-1 border border-zinc-800 text-right text-blue-400">DRV: ${x.drvScore.toFixed(0)}</div>
                     </div>
-                    <div class="flex gap-3 text-[9px] font-black uppercase mb-1">
-                        <span class="${x.isPoc ? 'text-green-500' : 'text-zinc-700'}">POC</span>
-                        <span class="${x.isSlp ? 'text-yellow-500' : 'text-zinc-700'}">SLP</span>
-                        <span class="${x.isSqz ? 'text-blue-500' : 'text-zinc-700'}">SQZ</span>
+                    <div class="flex justify-between items-center border-t border-zinc-900 pt-1">
+                        <div class="flex gap-2 text-[8px] font-black uppercase">
+                            <span class="${x.slope <= FILTER.SLP ?'text-green-500':'text-zinc-700'}">SLP</span>
+                            <span class="${x.maSqz <= FILTER.SQZ ?'text-green-500':'text-zinc-700'}">SQZ</span>
+                            <span class="${x.isPocOk ? 'text-green-500':'text-zinc-700'}">POC</span>
+                        </div>
+                        <div class="px-1 rounded text-[7px] ${x.tslMode === 'M7_TIGHT' ? 'bg-red-900 text-red-200' : 'bg-zinc-800 text-zinc-400'}">${x.tslMode}</div>
                     </div>
                     <div class="tsl-box">
-                        <span class="text-red-400">SL: $${x.tsl.toFixed(4)}</span>
-                        <span class="text-green-500">TP: $${x.ttp.toFixed(4)}</span>
+                        <span>SL_TRAIL: $${x.tsl.toFixed(4)}</span>
+                        <span class="text-green-700">TP_TRAIL: $${x.ttp.toFixed(4)}</span>
                     </div>
                 </div>
             `;
         }).join('');
     }
 
-    function addLog(s, chg, score) {
+    function addLog(s, v5m, score, lvl) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
-        entry.className = `p-2 bg-zinc-900 border-l-4 border-red-500 text-[9px] mb-1`;
-        entry.innerHTML = `<b>🔥 ${s}</b> [${chg}%] SC:${score} <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
+        entry.className = `p-2 bg-zinc-900 border-l-4 ${lvl===2?'border-purple-600':'border-red-500'} text-[9px] mb-1`;
+        entry.innerHTML = `<b>${lvl===2?'⚡ SPIKE':'🔥 HUNT'} ${s}</b> 5M:+${(v5m*100).toFixed(2)}% SC:${score.toFixed(0)} <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
         container.prepend(entry);
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "Stop Radar" : "Start Radar"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
+    function manualAdd() { const input = document.getElementById('searchInput'); let s = input.value.toUpperCase().trim(); if(!s) return; if(!s.endsWith('USDT')) s+='USDT'; pinned.add(s); input.value=''; render(); }
+    
+    setupSliders();
 </script>
 </body>
 </html>

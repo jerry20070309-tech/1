@@ -97,7 +97,7 @@
     async function scan() {
         if(!isRunning) return;
         try {
-            // 修正：同時抓取 24h 封包與 OI 封包
+            // 修正：抓取正確的幣安期貨全市場持倉封包 (Open Interest)
             const [tRes, oiRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
                 fetch('https://fapi.binance.com/fapi/v1/ticker/openInterest')
@@ -106,10 +106,14 @@
             const tickers = await tRes.json();
             const oiData = await oiRes.json();
             
-            // 後台處理：將 OI 封包轉為 Map
-            const oiMap = Object.fromEntries(oiData.map(o => [o.symbol, parseFloat(o.openInterest)]));
-            const now = new Date();
+            // 後台處理：將抓到的 OI 封包映射為 Map 物件
+            const oiMap = {};
+            oiData.forEach(o => {
+                oiMap[o.symbol] = parseFloat(o.openInterest);
+            });
 
+            const now = new Date();
+            // 每 5 分鐘快照一次價格與持倉，計算變化率
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
                 tickers.forEach(t => {
@@ -125,10 +129,12 @@
                 
                 const price = parseFloat(t.lastPrice);
                 const avgPrice = parseFloat(t.weightedAvgPrice);
+                
+                // 從後台 Map 提取持倉量
                 const currentOI = oiMap[s] || 0;
                 const oldOI = oiSnapshots[s] || currentOI;
                 
-                // 後台計算：OI% 持倉變化量
+                // 計算持倉變化率 (OI%)
                 const oiChange = oldOI === 0 ? 0 : ((currentOI - oldOI) / oldOI) * 100;
 
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
@@ -154,10 +160,11 @@
                 if (v5m >= FILTER.MOM) score += 30;
                 if (drv > FILTER.DRV) score += 50;
 
+                // 數據注入 stats
                 stats[s] = { s, price, score, ttp, tsl, peak: peakPrices[s], dVol: avgVol, drv, trendUp, oi: currentOI, oiChange };
             });
             render();
-        } catch (e) { console.error("API Error:", e); }
+        } catch (e) { console.error("API 錯誤:", e); }
         setTimeout(scan, 3000);
     }
 

@@ -2,139 +2,160 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V13.2.0 | INDEPENDENT OI PACKET</title>
+    <title>⚡ SNIPER V13.6.0 | POC VACUUM & 2K ORDERBOOK</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; }
-        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; }
-        .score-70 { border: 2px solid #a855f7; box-shadow: 0 0 15px #a855f7; background: #1e1b4b !important; }
+        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 25px #ff0000; background: #2a0000 !important; }
+        .vacuum-tag { background: #1e1b4b; color: #a855f7; border: 1px solid #a855f7; padding: 1px 4px; font-size: 8px; border-radius: 2px; }
         .log-item { border-left: 3px solid #ff0000; padding: 6px; margin-bottom: 5px; background: #111; font-size: 10px; color: #ff9999; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V13.2.0</h1>
-        <div class="flex gap-2">
-            <input id="addS" type="text" placeholder="手動添加" class="bg-zinc-900 border border-zinc-700 px-3 py-1 text-white text-xs rounded outline-none w-32">
-            <button onclick="manualAdd()" class="bg-yellow-600 text-black px-4 py-1 font-bold rounded text-xs">ADD</button>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black text-xs">START</button>
+        <div class="flex items-center gap-6">
+            <h1 class="text-2xl font-black text-yellow-500 italic uppercase">⚡ SNIPER V13.6.0</h1>
+            <div class="flex gap-2">
+                <input id="addS" type="text" placeholder="幣種 (e.g. BTC)" class="bg-zinc-900 border border-zinc-700 px-3 py-1 text-white text-xs rounded outline-none uppercase">
+                <button onclick="manualAdd()" class="bg-yellow-600 text-black px-4 py-1 font-bold rounded text-xs">ADD</button>
+            </div>
+        </div>
+        <div class="flex gap-6 items-center">
+            <div class="text-right">
+                <div class="text-red-500 font-black uppercase text-[9px]">Saturday High-Win Method [cite: 2026-01-22]</div>
+                <div class="text-zinc-500 font-bold text-[8px]">POC VACUUM + 2K ORDERBOOK FILTER [cite: 2026-01-24]</div>
+            </div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-10 py-2 rounded font-black text-xs hover:bg-blue-500 transition-all">START</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900 border-b border-yellow-900/30 p-3 grid grid-cols-4 gap-8 shrink-0 text-zinc-400 font-bold">
-        <div class="flex flex-col"><span>📉 ENTRY: <span id="v_entry" class="text-red-500">-15%</span></span><input type="range" id="i_entry" min="5" max="50" value="15" oninput="updateParams()"></div>
-        <div class="flex flex-col"><span>⚡ MOM: <span id="v_mom" class="text-orange-500">0.8%</span></span><input type="range" id="i_mom" min="3" max="50" value="8" oninput="updateParams()"></div>
-        <div class="flex flex-col"><span>🌀 SQZ: <span id="v_sqz" class="text-blue-400">1.2%</span></span><input type="range" id="i_sqz" min="5" max="50" value="12" oninput="updateParams()"></div>
-        <div class="flex flex-col"><span>🚀 DRV: <span id="v_drv" class="text-green-400">90</span></span><input type="range" id="i_drv" min="10" max="150" value="90" oninput="updateParams()"></div>
+    <div class="bg-zinc-900 border-b border-yellow-900/30 p-3 grid grid-cols-4 gap-8 shrink-0">
+        <div class="flex flex-col gap-1">
+            <div class="flex justify-between font-bold text-red-500 uppercase"><span>📉 POC MA Gap</span><span id="v_entry">15%</span></div>
+            <input type="range" id="i_entry" min="5" max="50" value="15" oninput="updateParams()">
+        </div>
+        <div class="flex flex-col gap-1">
+            <div class="flex justify-between font-bold text-orange-500 uppercase"><span>⚡ OI Growth</span><span id="v_mom">0.8%</span></div>
+            <input type="range" id="i_mom" min="3" max="50" value="8" oninput="updateParams()">
+        </div>
+        <div class="flex flex-col gap-1">
+            <div class="flex justify-between font-bold text-blue-400 uppercase"><span>🌀 2K Order Depth</span><span id="v_sqz">2.0k</span></div>
+            <input type="range" id="i_sqz" min="5" max="100" value="20" oninput="updateParams()">
+        </div>
+        <div class="flex flex-col gap-1">
+            <div class="flex justify-between font-bold text-green-400 uppercase"><span>🚀 Volume Drv</span><span id="v_drv">90</span></div>
+            <input type="range" id="i_drv" min="10" max="150" value="90" oninput="updateParams()">
+        </div>
     </div>
 
     <main class="flex-1 flex overflow-hidden">
-        <aside class="w-64 border-r border-zinc-800 p-2 overflow-y-auto bg-black shrink-0">
-            <div class="text-red-600 font-bold mb-2 uppercase text-[11px]">90+ Score Log</div>
-            <div id="logs"></div>
+        <aside class="w-72 border-r border-zinc-800 p-3 overflow-y-auto bg-black">
+            <div class="text-red-600 font-black mb-3 uppercase italic text-xs tracking-widest">🔥 Strategy Signal Log</div>
+            <div id="logs" class="space-y-2"></div>
         </aside>
-        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <div id="dashboard" class="flex-1 p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-zinc-950"></div>
     </main>
 
 <script>
-    let stats = {}, isRunning = false;
-    let pinnedCoins = []; // 被追蹤的幣種清單
-    let baseOI = {}, oiHistory = {}; 
-    let PARAMS = { ENTRY: -0.15, MOM: 0.008, SQZ: 0.012, DRV: 90 };
+    let stats = {}, isRunning = false, pinnedCoins = [], baseOI = {}, oiHistory = {}; 
+    let PARAMS = { ENTRY: 0.15, MOM: 0.008, DEPTH: 2000, DRV: 90 };
 
     function updateParams() {
         const e = document.getElementById('i_entry').value, m = document.getElementById('i_mom').value, s = document.getElementById('i_sqz').value, d = document.getElementById('i_drv').value;
-        PARAMS.ENTRY = -(e/100); PARAMS.MOM = m/1000; PARAMS.SQZ = s/1000; PARAMS.DRV = d;
-        document.getElementById('v_entry').innerText = `-${e}%`; document.getElementById('v_mom').innerText = `${(m/10).toFixed(1)}%`;
-        document.getElementById('v_sqz').innerText = `${(s/10).toFixed(1)}%`; document.getElementById('v_drv').innerText = d;
+        PARAMS.ENTRY = e/100; PARAMS.MOM = m/1000; PARAMS.DEPTH = s*100; PARAMS.DRV = d;
+        document.getElementById('v_entry').innerText = `${e}%`; document.getElementById('v_mom').innerText = `${(m/10).toFixed(1)}%`;
+        document.getElementById('v_sqz').innerText = `${(s/10).toFixed(1)}k`; document.getElementById('v_drv').innerText = d;
     }
 
-    // 正確的 OI 抓取接口
-    async function getOI(symbol) { 
-        try { 
-            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`); 
-            const data = await res.json(); 
-            return parseFloat(data.openInterest); 
-        } catch(e) { return null; } 
-    }
+    // 核心 API 抓取
+    async function getOI(s) { try { const r = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${s}`); const d = await r.json(); return parseFloat(d.openInterest); } catch(e) { return null; } }
+    async function getDepth(s) { try { const r = await fetch(`https://fapi.binance.com/fapi/v1/depth?symbol=${s}&limit=100`); const d = await r.json(); return d; } catch(e) { return null; } }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 封包 1: 價格數據
             const res24 = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
             const data24 = await res24.json();
-
-            // 挑選波動最強的前 20 名自動列入追蹤，或從 pinnedCoins 追蹤
-            const candidates = data24.filter(t => t.symbol.endsWith('USDT')).sort((a,b) => Math.abs(b.priceChangePercent) - Math.abs(a.priceChangePercent)).slice(0, 15);
             
-            for (const t of candidates) {
+            for (const t of data24) {
                 const s = t.symbol;
-                if (!pinnedCoins.includes(s)) pinnedCoins.push(s);
-
-                // 封包 2: OI 獨立抓取（無條件觸發，每 3 秒執行）
-                const currentOI = await getOI(s);
-                if (currentOI) {
-                    if (!baseOI[s]) baseOI[s] = currentOI; // 第一次抓到時存為基準點
-                    oiHistory[s] = currentOI;
-                }
+                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) continue;
 
                 const curPrice = parseFloat(t.lastPrice);
-                const pocPrice = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
-                const growth = baseOI[s] ? (oiHistory[s] - baseOI[s]) / baseOI[s] : 0;
+                const high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
+                const pocPrice = (high + low + parseFloat(t.weightedAvgPrice)) / 3;
+                
+                // 1. POC MA 真空區計算：價格與 POC 偏離程度
+                const vacuumGap = Math.abs(curPrice - pocPrice) / pocPrice;
 
-                let score = 0;
-                if (curPrice > pocPrice) score += 40; 
-                if (growth > PARAMS.MOM) score += 30; // OI 成長加分
-                if (parseFloat(t.priceChangePercent) > 0) score += 30;
+                if (!pinnedCoins.includes(s) && (vacuumGap > PARAMS.ENTRY)) {
+                    pinnedCoins.push(s);
+                    const oi = await getOI(s); if(oi) baseOI[s] = oi;
+                }
 
-                stats[s] = { s, price: curPrice, score, poc: pocPrice, growth, tsl: pocPrice, ttp: curPrice * 1.05 };
+                if (pinnedCoins.includes(s)) {
+                    // 2. 2K 訂單簿過濾 (抓取數據後本地計算深度)
+                    const depth = await getDepth(s);
+                    const asks2k = depth ? depth.asks.reduce((sum, [p, q]) => sum + (p * q), 0) : 0;
+                    
+                    const oi = await getOI(s);
+                    if (oi && baseOI[s]) {
+                        oiHistory[s] = oi;
+                        const growth = (oiHistory[s] - baseOI[s]) / baseOI[s];
 
-                if (score >= 90) {
-                    const log = document.getElementById('logs');
-                    if (!document.getElementById(`log_${s}`)) {
-                        log.innerHTML = `<div id="log_${s}" class="log-item"><b>${new Date().toLocaleTimeString()}</b> ${s}<br>Price: $${curPrice} | MOM: +${(growth*100).toFixed(2)}%</div>` + log.innerHTML;
+                        let score = 0;
+                        if (vacuumGap > PARAMS.ENTRY) score += 40; // 真空區加分
+                        if (asks2k > PARAMS.DEPTH) score += 30;    // 訂單簿深度過濾
+                        if (growth > PARAMS.MOM) score += 30;      // OI 增長
+
+                        stats[s] = { s, price: curPrice, score, poc: pocPrice, growth, vacuum: vacuumGap, depth: asks2k };
+
+                        if (score >= 90 && !document.getElementById(`log_${s}`)) {
+                            const log = document.getElementById('logs');
+                            log.innerHTML = `<div id="log_${s}" class="log-item"><b>VACUUM SIGNAL</b> | ${s}<br>GAP: ${(vacuumGap*100).toFixed(2)}% | DEPTH: $${(asks2k/1000).toFixed(1)}k</div>` + log.innerHTML;
+                        }
                     }
                 }
             }
             render();
-        } catch (e) { console.error("Scan Error"); }
+        } catch (e) { console.error("Strategy Engine Error"); }
         setTimeout(scan, 3000);
     }
 
     function render() {
         const dashboard = document.getElementById('dashboard');
-        const list = Object.values(stats).sort((a,b) => b.score - a.score);
+        const list = Object.values(stats).filter(x => pinnedCoins.includes(x.s)).sort((a,b) => b.score - a.score);
         dashboard.innerHTML = list.map(x => `
-            <div class="card p-4 rounded-lg ${x.score >= 90 ? 'score-90' : (x.score >= 70 ? 'score-70' : 'score-40')}">
+            <div class="card p-5 rounded-xl ${x.score >= 90 ? 'score-90' : ''}">
                 <div class="flex justify-between items-start mb-2">
-                    <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
-                    <span class="text-yellow-500 font-bold text-lg">★ ${x.score}</span>
+                    <h2 class="text-3xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
+                    <span class="text-yellow-500 font-bold text-xl">★ ${x.score}</span>
                 </div>
-                <div class="grid grid-cols-2 gap-y-1 mb-3 text-[9px] font-bold uppercase">
-                    <div class="text-zinc-400 text-[10px]">Price: <span class="text-white">$${x.price.toFixed(4)}</span></div>
-                    <div class="text-green-400 text-right">Growth: +${(x.growth * 100).toFixed(2)}%</div>
+                <div class="flex gap-2 mb-3">
+                    <span class="vacuum-tag">POC GAP: ${(x.vacuum * 100).toFixed(2)}%</span>
+                    <span class="vacuum-tag">DEPTH: $${(x.depth / 1000).toFixed(1)}k</span>
                 </div>
-                <div class="border-t border-zinc-800 pt-2 flex justify-between font-mono text-[9px] font-black uppercase">
-                    <div class="text-red-500">Stop: $${x.tsl.toFixed(4)}</div>
-                    <div class="text-green-500">Target: $${x.ttp.toFixed(4)}</div>
+                <div class="grid grid-cols-2 gap-2 text-[10px] font-bold border-b border-zinc-800 pb-2 mb-3">
+                    <div class="text-zinc-400 uppercase">PRICE: <span class="text-white">$${x.price.toFixed(4)}</span></div>
+                    <div class="text-zinc-400 uppercase text-right">OI MOM: <span class="text-green-400">+${(x.growth * 100).toFixed(2)}%</span></div>
                 </div>
+                <div class="text-[8px] text-zinc-600 font-bold italic uppercase tracking-widest">Strategy: Saturday Only [cite: 2026-01-24]</div>
             </div>
         `).join('');
     }
 
     async function manualAdd() {
-        let s = document.getElementById('addS').value.toUpperCase().trim();
-        if(!s) return; if(!s.endsWith('USDT')) s += 'USDT';
-        if(!pinnedCoins.includes(s)) pinnedCoins.push(s);
-        const oi = await getOI(s); if(oi) { baseOI[s] = oi; oiHistory[s] = oi; }
+        let val = document.getElementById('addS').value.toUpperCase().trim();
+        if(!val) return; if(!val.endsWith('USDT')) val += 'USDT';
+        if(!pinnedCoins.includes(val)) pinnedCoins.push(val);
+        const oi = await getOI(val); if(oi) { baseOI[val] = oi; oiHistory[val] = oi; }
         document.getElementById('addS').value = '';
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START SYSTEM"; if(isRunning) scan(); }
 </script>
 </body>
 </html>

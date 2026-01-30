@@ -2,23 +2,24 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V12.5.0 | POC & OI & TSL</title>
+    <title>⚡ SNIPER V12.6.0 | POC & OI FIXED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; }
-        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; }
+        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; animation: blink 1s infinite; }
         .score-70 { border: 2px solid #a855f7; box-shadow: 0 0 15px #a855f7; background: #1e1b4b !important; }
         .score-40 { border: 2px solid #FFD700; }
-        .log-item { border-left: 2px solid #ff0000; padding-left: 5px; margin-bottom: 4px; color: #ff9999; font-size: 9px; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        .log-item { border-left: 3px solid #ff0000; padding: 4px 8px; margin-bottom: 6px; color: #ff9999; font-size: 10px; background: #1a0000; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.5.0</h1>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black">START</button>
+        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.6.0</h1>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START</button>
     </header>
 
     <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
@@ -31,18 +32,27 @@
     </div>
 
     <main class="flex-1 flex overflow-hidden">
-        <aside class="w-64 border-r border-zinc-800 p-2 overflow-y-auto bg-black">
-            <div class="text-zinc-500 font-bold mb-2 uppercase italic text-[9px]">Elite Log (90+ Score)</div>
+        <aside class="w-72 border-r border-zinc-800 p-2 overflow-y-auto bg-black">
+            <div class="text-red-500 font-bold mb-3 uppercase italic text-[10px] tracking-widest">🔥 90+ Score History</div>
             <div id="logs"></div>
         </aside>
         <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </main>
 
 <script>
-    let stats = {}, isRunning = false, lastSnapMin = -1;
+    let stats = {}, isRunning = false;
     let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90, MOM: 0.008, REV: 0.02, SLP: 1.5 };
 
-    // 核心運算：從 K 線成交量高峰找 POC 平均價
+    // 核心：抓取 OI (修正 404)
+    async function getOI(symbol) {
+        try {
+            const res = await fetch(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${symbol}`);
+            const data = await res.json();
+            return parseFloat(data.openInterest).toLocaleString();
+        } catch(e) { return "N/A"; }
+    }
+
+    // 核心：從 1H 成交量高峰計算 POC
     function getVolumePeakPOC(klines) {
         let maxVol = 0, peakIdx = 0;
         klines.forEach((k, i) => {
@@ -50,54 +60,58 @@
             if (vol > maxVol) { maxVol = vol; peakIdx = i; }
         });
         const peakK = klines[peakIdx];
-        return (parseFloat(peakK[2]) + parseFloat(peakK[3])) / 2; // (High + Low) / 2
+        // 嚴格平均價：(High + Low) / 2
+        return (parseFloat(peakK[2]) + parseFloat(peakK[3])) / 2;
     }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 封包 1: 價格與統計, 封包 2: 全場持倉量 (這就是你要的封包化)
-            const [res24, resOI] = await Promise.all([
-                fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
-                fetch('https://fapi.binance.com/fapi/v1/ticker/openInterest/statistics?period=5m&limit=1')
-            ]);
+            const res24 = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
             const data24 = await res24.json();
             
-            for (const t of data24.slice(0, 30)) { // 嚴選前 30
-                const s = t.symbol;
-                if (!s.endsWith('USDT')) continue;
+            // 排序找波動最強的前 20 名，減少封包壓力
+            const topList = data24
+                .filter(t => t.symbol.endsWith('USDT'))
+                .sort((a, b) => Math.abs(parseFloat(b.priceChangePercent)) - Math.abs(parseFloat(a.priceChangePercent)))
+                .slice(0, 21);
 
-                // 請求 K 線 (獲取成交量高峰)
-                const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
-                const klines = await kRes.json();
+            for (const t of topList) {
+                const s = t.symbol;
                 
+                // 併發獲取 K 線與 OI (封包化處理)
+                const [kRes, oiVal] = await Promise.all([
+                    fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`).then(r => r.json()),
+                    getOI(s)
+                ]);
+
                 const curPrice = parseFloat(t.lastPrice);
-                const pocPrice = getVolumePeakPOC(klines);
+                const pocPrice = getVolumePeakPOC(kRes);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
 
-                // 打分邏輯
                 let score = 0;
-                if (curPrice > pocPrice) score += 40; // 站上量價高峰 POC
-                if (drv > FILTER.DRV) score += 30;    // 驅動強度
-                if (parseFloat(t.priceChangePercent) > 0) score += 30; // 漲跌加分
+                if (curPrice > pocPrice) score += 40; 
+                if (drv > FILTER.DRV) score += 30;
+                if (parseFloat(t.priceChangePercent) > 0) score += 30;
 
-                // 記錄 90 分天價日誌
+                // 90分紀錄日誌
                 if (score >= 90 && (!stats[s] || stats[s].score < 90)) {
                     const log = document.getElementById('logs');
-                    log.innerHTML = `<div class="log-item">[${new Date().toLocaleTimeString()}] ${s}: $${curPrice} (SCORE: ${score})</div>` + log.innerHTML;
+                    const time = new Date().toLocaleTimeString();
+                    log.innerHTML = `<div class="log-item"><b>${time}</b> | ${s}<br>Price: $${curPrice} | SCORE: ${score}</div>` + log.innerHTML;
                 }
 
                 stats[s] = {
                     s, price: curPrice, score,
                     poc: pocPrice,
-                    tsl: pocPrice, // 移動止損直接對齊 POC
-                    ttp: curPrice * 1.05, // 模擬移動止盈
-                    oi: "持倉載入中..."
+                    tsl: pocPrice, // 止損對齊成交量高峰
+                    ttp: curPrice + (curPrice - pocPrice), // 對稱止盈
+                    oi: oiVal
                 };
             }
             render();
-        } catch (e) { console.error("Error", e); }
-        setTimeout(scan, 3000);
+        } catch (e) { console.error("Scan Error:", e); }
+        setTimeout(scan, 4000); 
     }
 
     function render() {
@@ -110,24 +124,28 @@
                     <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
                     <div class="text-right">
                         <span class="text-yellow-500 font-black text-lg">★ ${x.score}</span>
-                        <div class="text-[7px] text-zinc-500 italic">2026-01-31 SAT</div>
+                        <div class="text-[8px] text-zinc-500">OI: ${x.oi}</div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-y-1 mb-3 text-[9px] font-bold">
-                    <div class="text-zinc-400">現價: <span class="text-white">$${x.price.toFixed(4)}</span></div>
-                    <div class="text-zinc-400 text-right">POC高峰: <span class="text-green-400">$${x.poc.toFixed(4)}</span></div>
+                    <div class="text-zinc-400">PRICE: <span class="text-white">$${x.price.toFixed(4)}</span></div>
+                    <div class="text-zinc-400 text-right">POC: <span class="text-green-400">$${x.poc.toFixed(4)}</span></div>
                 </div>
                 <div class="border-t border-zinc-800 pt-2 flex justify-between font-mono text-[9px] font-black">
-                    <div class="text-red-500">TSL (止損): $${x.tsl.toFixed(4)}</div>
-                    <div class="text-green-500">TTP (止盈): $${x.ttp.toFixed(4)}</div>
+                    <div class="text-red-500 uppercase tracking-tighter">SL: $${x.tsl.toFixed(4)}</div>
+                    <div class="text-green-500 uppercase tracking-tighter">TP: $${x.ttp.toFixed(4)}</div>
                 </div>
             </div>`;
         }).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; if(isRunning) scan(); }
+    function toggleSystem() { 
+        isRunning = !isRunning; 
+        document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; 
+        document.getElementById('sysBtn').className = isRunning ? "bg-red-600 text-white px-8 py-1 rounded font-black" : "bg-blue-600 text-white px-8 py-1 rounded font-black";
+        if(isRunning) scan(); 
+    }
     
-    // 滑桿連動
     document.querySelectorAll('input[type=range]').forEach(el => {
         el.oninput = (e) => {
             const key = e.target.id.replace('i_', '').toUpperCase();

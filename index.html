@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.8.1 | FULL MODE</title>
+    <title>⚡ SNIPER V11.8.1 | POC DYNAMIC</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -63,7 +63,6 @@
     let priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1, m7History = {}, signalCount = {}, peakPrices = {}; 
     let FILTER = { SQZ: 0.012, POC: 0.011, SLP: -0.15, DRV: 90, MOM: 0.008, REV: 0.02 };
 
-    // 【回歸：Preset 邏輯】
     function applyPreset(type) {
         const presets = {
             'Ambush': { sqz: 8, poc: 5, slp: 5, drv: 110, mom: 5, rev: 35 },
@@ -123,34 +122,47 @@
                 
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                // --- 方案 C 原版核心邏輯 ---
+                // --- 方案 C 核心參數 ---
                 const mid24h = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
                 const m25 = (mid24h * 0.7) + (avgPrice * 0.3);
                 if (!m7History[s]) m7History[s] = [];
                 m7History[s].push(avgPrice);
                 if (m7History[s].length > 10) m7History[s].shift();
                 const m7Slope = m7History[s].length > 1 ? avgPrice > m7History[s][0] : false;
-                const m7Distance = (price - avgPrice) / avgPrice;
-                const passStage1 = price > (avgPrice * 1.002), passStage2 = m7Slope, passStage3 = m7Distance < 0.08;
-                if (!signalCount[s]) signalCount[s] = 0;
-                if (passStage1 && passStage2 && passStage3) signalCount[s]++; else signalCount[s] = 0;
-                const isAboveM7Filtered = signalCount[s] >= 3;
+                const isAboveM7Filtered = (price > avgPrice * 1.002) && m7Slope;
 
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
                 const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
-                const isTight = Math.abs(price - avgPrice) / avgPrice < 0.003, isAboveM99 = parseFloat(t.priceChangePercent) > 0, isPocOk = Math.abs(parseFloat(t.priceChangePercent)) / 100 >= FILTER.POC;
+                const v5m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
 
-                // --- 動態止盈損追蹤 ---
-                let tsl = (drvScore > 90) ? Math.max(avgPrice * 0.997, peakPrices[s] * 0.995) : Math.max(m25 * 0.992, peakPrices[s] * 0.985);
-                let ttp = peakPrices[s] * (1 - FILTER.REV); 
+                // --- 【新版：POC 密集區動態波動邏輯】 ---
+                // 以 POC 設定值模擬密集區起點
+                const pocStart = avgPrice * (1 - FILTER.POC);
+                const distPoc = Math.abs(price - pocStart) / pocStart;
+                
+                // 動態波動率 (Volatility Factor)
+                const dynamicVol = (maSqz * 0.4) + (distPoc * 0.4) + (Math.abs(v5m) * 0.2);
 
-                // --- 權重評分 ---
-                let score = 0, v5m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price), isVolatile = v5m >= 0.05;
+                // SL: 最高價回撤 1.5 倍波動，不低於 M7/M25 底線
+                let tsl = peakPrices[s] * (1 - (dynamicVol * 1.5));
+                tsl = Math.max(tsl, (drvScore > 90 ? avgPrice * 0.997 : m25 * 0.992));
+
+                // TP: 最高價回撤 0.8 倍波動，且必須高於 SL 確保不倒置
+                let ttp = Math.max(tsl * 1.005, peakPrices[s] * (1 - (dynamicVol * 0.8)));
+
+                // --- 評分與資料封裝 ---
+                let score = 0, isVolatile = v5m >= 0.05;
                 if (isVolatile) score += 50;
-                if (maSqz < 0.008) { score += (maSqz <= FILTER.SQZ) ? 25 : 0; score += (isPocOk) ? 25 : 0; score += (drvScore >= FILTER.DRV) ? 35 : 0; }
-                else { score += (drvScore >= FILTER.DRV) ? 25 : 0; score += (isAboveM7Filtered && isAboveM99) ? 15 : 0; }
+                if (maSqz < 0.008) { 
+                    score += (maSqz <= FILTER.SQZ) ? 25 : 0; 
+                    score += (Math.abs(parseFloat(t.priceChangePercent))/100 >= FILTER.POC) ? 25 : 0; 
+                    score += (drvScore >= FILTER.DRV) ? 35 : 0; 
+                } else { 
+                    score += (drvScore >= FILTER.DRV) ? 25 : 0; 
+                    score += (isAboveM7Filtered && parseFloat(t.priceChangePercent) > 0) ? 15 : 0; 
+                }
 
-                stats[s] = { s, price, fund: parseFloat(premiumMap[s]?.lastFundingRate || 0), drvScore, isAboveM7: isAboveM7Filtered, isTight, isVolatile, v5m, score, ttp, tsl, peak: peakPrices[s] };
+                stats[s] = { s, price, fund: parseFloat(premiumMap[s]?.lastFundingRate || 0), drvScore, isAboveM7: isAboveM7Filtered, score, ttp, tsl, peak: peakPrices[s] };
             });
             render();
         } catch (e) { console.error(e); }
@@ -161,7 +173,7 @@
         const dashboard = document.getElementById('dashboard');
         const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
         dashboard.innerHTML = list.slice(0, 24).map(x => `
-            <div class="card p-3 rounded-lg ${(x.score >= 90 || x.isVolatile) ? 'hunt-card' : 'base-card'} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
+            <div class="card p-3 rounded-lg ${(x.score >= 90) ? 'hunt-card' : 'base-card'} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                 <div class="flex justify-between items-start mb-1">
                     <div class="flex gap-1"><span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7_VLD</span></div>
                     <span class="text-xs font-black text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
@@ -174,7 +186,10 @@
                     <div class="bg-black p-1 border border-zinc-800 text-blue-400">DRV: ${x.drvScore.toFixed(0)}</div>
                     <div class="bg-black p-1 border border-zinc-800 text-right">PEAK: $${x.peak.toFixed(4)}</div>
                 </div>
-                <div class="tsl-box"><span>SL: $${x.tsl.toFixed(4)}</span><span class="text-green-600 font-black">TP: $${x.ttp.toFixed(4)}</span></div>
+                <div class="tsl-box">
+                    <span class="text-red-500">SL: $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500 font-black">TP: $${x.ttp.toFixed(4)}</span>
+                </div>
             </div>`).join('');
     }
 

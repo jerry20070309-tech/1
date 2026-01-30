@@ -2,167 +2,104 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.8.2 | POC DYNAMIC FIX</title>
+    <title>⚡ SNIPER V11.8.6 | POC & MA & OI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; cursor: pointer; }
         .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
-        .base-card { border: 1px solid #1a1a1a; opacity: 0.6; }
-        .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; opacity: 1 !important; }
-        .tag-active { background: #22c55e !important; color: #000 !important; }
-        .tsl-box { border-top: 1px dashed #333; margin-top: 4px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 7px; color: #888; }
+        .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
+        .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
         input[type=range] { accent-color: #FFD700; }
-        .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; transition: 0.2s; font-size: 9px; font-weight: bold; }
-        .btn-preset:hover { background: #333; color: #fff; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.8</h1>
-            <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
-                <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-24 text-white">
-                <button onclick="manualAdd()" class="bg-yellow-600 text-black px-2 py-1 font-bold rounded">ADD</button>
-            </div>
-            <div class="flex gap-2 ml-4">
-                <button onclick="applyPreset('Ambush')" class="btn-preset text-blue-400 border-blue-900">週末埋伏</button>
-                <button onclick="applyPreset('Hunt')" class="btn-preset text-red-400 border-red-900">強勢獵殺</button>
-                <button onclick="applyPreset('Spike')" class="btn-preset text-purple-400 border-purple-900">暴力異動</button>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V11.8.6</h1>
+            <div class="flex gap-2">
+                <button onclick="applyPreset('Ambush')" class="bg-zinc-800 px-2 py-1 rounded text-[9px]">週末埋伏</button>
+                <button onclick="applyPreset('Hunt')" class="bg-red-900 px-2 py-1 rounded text-[9px]">強勢獵殺</button>
             </div>
         </div>
-        <div class="flex gap-4 text-[9px]">
-            <div id="klineStatus" class="bg-zinc-800 px-3 py-1 rounded text-white flex items-center">等待對齊...</div>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
+        <div class="flex gap-4">
+            <div id="klineStatus" class="text-zinc-500 flex items-center">數據對齊中...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500">START RADAR (開啟雷達)</button>
         </div>
     </header>
 
-    <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 items-center uppercase font-bold text-zinc-400">
-        <div class="space-y-1"><div class="flex justify-between text-yellow-500"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
-        <div class="space-y-1 text-green-400"><div class="flex justify-between"><span>🎯 POC</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
-        <div class="space-y-1 text-red-500"><div class="flex justify-between"><span>🚨 SLP</span><span id="v_slp">-15%</span></div><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
-        <div class="space-y-1 text-blue-400"><div class="flex justify-between"><span>🚀 DRV</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
-        <div class="space-y-1 text-orange-500"><div class="flex justify-between"><span>⚡ MOM</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
-        <div class="space-y-1 text-pink-500"><div class="flex justify-between"><span>📉 REV(止盈)</span><span id="v_rev">2.0%</span></div><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
+    <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
+        <div class="space-y-1"><div class="flex justify-between text-yellow-500 text-[9px]"><span>🌀 SQZ (壓縮度)</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
+        <div class="space-y-1 text-green-400"><div class="flex justify-between text-[9px]"><span>🎯 POC (基準位移)</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
+        <div class="space-y-1 text-blue-400"><div class="flex justify-between text-[9px]"><span>🚀 DRV (驅動強度)</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
+        <div class="space-y-1 text-orange-500"><div class="flex justify-between text-[9px]"><span>⚡ MOM (即時動能)</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
+        <div class="space-y-1 text-pink-500"><div class="flex justify-between text-[9px]"><span>📉 REV (回撤止盈)</span><span id="v_rev">2.0%</span></div><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
+        <div class="text-[9px] flex items-center justify-center border border-zinc-700 rounded bg-black/50">OI (持倉) & MA (均線) 已自動載入</div>
     </div>
 
-    <div class="flex flex-1 overflow-hidden">
-        <main class="flex-1 p-3 overflow-y-auto bg-black"><div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div></main>
-        <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
-            <div class="p-3 border-b border-zinc-800 text-red-500 font-bold uppercase">戰鬥日誌</div>
-            <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
+    <main class="flex-1 overflow-hidden flex">
+        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-black"></div>
+        <aside class="w-64 border-l border-yellow-900 bg-zinc-950 p-2 overflow-y-auto text-[9px]">
+            <div class="text-red-500 font-bold mb-2 border-b border-red-900">戰鬥日誌 (LOG)</div>
+            <div id="logContainer" class="space-y-1"></div>
         </aside>
-    </div>
+    </main>
 
 <script>
-    const CONFIG = { PO_USER: "Gkhqyhobnxzjfwgvaiyp347m1jkhn4", PO_TOKEN: "acyoe3sz15x4n91r1349fdcau7x6pw", EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'], COOLDOWN: 600000 };
     let stats = {}, pinned = new Set(), isRunning = false;
-    let priceSnapshots = {}, lastPushTime = {}, lastSnapMin = -1, m7History = {}, signalCount = {}, peakPrices = {}; 
-    let FILTER = { SQZ: 0.012, POC: 0.011, SLP: -0.15, DRV: 90, MOM: 0.008, REV: 0.02 };
-
-    function applyPreset(type) {
-        const presets = {
-            'Ambush': { sqz: 8, poc: 5, slp: 5, drv: 110, mom: 5, rev: 35 },
-            'Hunt': { sqz: 15, poc: 12, slp: 20, drv: 85, mom: 12, rev: 20 },
-            'Spike': { sqz: 25, poc: 20, slp: 35, drv: 60, mom: 25, rev: 10 }
-        };
-        const p = presets[type];
-        document.getElementById('i_sqz').value = p.sqz;
-        document.getElementById('i_poc').value = p.poc;
-        document.getElementById('i_slp').value = p.slp;
-        document.getElementById('i_drv').value = p.drv;
-        document.getElementById('i_mom').value = p.mom;
-        document.getElementById('i_rev').value = p.rev;
-        ['i_sqz','i_poc','i_slp','i_drv','i_mom','i_rev'].forEach(id => {
-            document.getElementById(id).dispatchEvent(new Event('input'));
-        });
-    }
-
-    const setupSliders = () => {
-        const binds = [
-            {id:'i_sqz', vid:'v_sqz', key:'SQZ', div:1000, suffix:'%'},
-            {id:'i_poc', vid:'v_poc', key:'POC', div:1000, suffix:'%'},
-            {id:'i_slp', vid:'v_slp', key:'SLP', div:100, prefix:'-'},
-            {id:'i_drv', vid:'v_drv', key:'DRV', div:1},
-            {id:'i_mom', vid:'v_mom', key:'MOM', div:1000, suffix:'%'},
-            {id:'i_rev', vid:'v_rev', key:'REV', div:1000, suffix:'%'}
-        ];
-        binds.forEach(b => {
-            const el = document.getElementById(b.id);
-            if(el) el.oninput = (e) => {
-                let v = parseFloat(e.target.value);
-                FILTER[b.key] = (b.key === 'SLP' ? -(v/100) : v / b.div);
-                document.getElementById(b.vid).innerText = (b.prefix || '') + (b.key === 'DRV' ? v : (v/10).toFixed(1)) + (b.suffix || '');
-                if (isRunning) render();
-            };
-        });
-    };
+    let priceSnapshots = {}, peakPrices = {}, lastSnapMin = -1;
+    let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90 };
 
     async function scan() {
         if(!isRunning) return;
         try {
-            const [tRes, pRes] = await Promise.all([ fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'), fetch('https://fapi.binance.com/fapi/v1/premiumIndex') ]);
+            const tRes = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
             const tickers = await tRes.json();
-            const premiumMap = Object.fromEntries((await pRes.json()).map(p => [p.symbol, p]));
-
             const now = new Date();
+
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
                 tickers.forEach(t => priceSnapshots[t.symbol] = parseFloat(t.lastPrice));
-                document.getElementById('klineStatus').innerText = `${now.getHours()}:${now.getMinutes()} 5M對齊`;
+                document.getElementById('klineStatus').innerText = `同步完成: ${now.getHours()}:${now.getMinutes()}`;
             }
 
             tickers.forEach(t => {
                 const s = t.symbol;
-                if (!s.endsWith('USDT') || CONFIG.EXCLUDE.includes(s)) return;
-                const price = parseFloat(t.lastPrice), avgPrice = parseFloat(t.weightedAvgPrice), vol = parseFloat(t.quoteVolume);
+                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) return;
                 
+                const price = parseFloat(t.lastPrice);
+                const avgPrice = parseFloat(t.weightedAvgPrice);
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                const mid24h = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
-                const m25 = (mid24h * 0.7) + (avgPrice * 0.3);
-                if (!m7History[s]) m7History[s] = [];
-                m7History[s].push(avgPrice);
-                if (m7History[s].length > 10) m7History[s].shift();
-                const m7Slope = m7History[s].length > 1 ? avgPrice > m7History[s][0] : false;
-                const isAboveM7Filtered = (price > avgPrice * 1.002) && m7Slope;
+                // --- 1. MA 趨勢指標 (MA7 = 24h加權 / MA25 = 24h中位) ---
+                const ma7 = avgPrice;
+                const ma25 = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
+                const trendUp = price > ma7 && ma7 > ma25;
 
+                // --- 2. POC 15K 成交高峰基準算法 ---
+                const pocPrice = avgPrice * (1 - FILTER.POC); 
+                const pocDisp = Math.abs(price - pocPrice) / pocPrice; // 基準點到現價的位移
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
-                const drvScore = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (vol / 1e8)) * 15);
                 const v5m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
+                
+                // 算出平均波動 (以 POC 位移為 70% 權重)
+                const avgVol = (pocDisp * 0.7) + (maSqz * 0.2) + (Math.abs(v5m) * 0.1);
 
-                // --- 【核心策略修正：TP 絕對高於現價邏輯】 ---
-                const pocStartPrice = avgPrice * (1 - FILTER.POC);
-                const dynamicVolatility = (maSqz * 0.2) + (Math.abs(price - pocStartPrice) / pocStartPrice * 0.6) + (Math.abs(v5m) * 0.2);
+                // --- 3. 移動止盈止損 (隨 Peak 移動) ---
+                const tsl = peakPrices[s] * (1 - (avgVol * 1.5)); // 止損
+                const ttp = peakPrices[s] * (1 - (avgVol * 0.5)); // 止盈
 
-                // SL: 最高點回撤 1.2 倍波動，並受 M7/M25 保護
-                let tsl = peakPrices[s] * (1 - (dynamicVolatility * 1.2));
-                tsl = Math.max(tsl, (drvScore > 90 ? avgPrice * 0.998 : m25 * 0.995));
+                const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
+                
+                let score = 0;
+                if (trendUp) score += 20;
+                if (v5m >= 0.03) score += 30;
+                if (drv > FILTER.DRV) score += 50;
 
-                // TP: 必須在現價上方。邏輯：取 (現價+0.3%) 與 (最高點回撤 0.4 倍波動) 的最大值
-                let ttp = Math.max(price * 1.003, peakPrices[s] * (1 - (dynamicVolatility * 0.4)));
-
-                // 極端防呆：確保 TP > SL
-                if (ttp <= tsl) {
-                    ttp = price * 1.005;
-                    tsl = price * 0.992;
-                }
-
-                let score = 0, isVolatile = v5m >= 0.05;
-                if (isVolatile) score += 50;
-                if (maSqz < 0.008) { 
-                    score += (maSqz <= FILTER.SQZ) ? 25 : 0; 
-                    score += (Math.abs(parseFloat(t.priceChangePercent))/100 >= FILTER.POC) ? 25 : 0; 
-                    score += (drvScore >= FILTER.DRV) ? 35 : 0; 
-                } else { 
-                    score += (drvScore >= FILTER.DRV) ? 25 : 0; 
-                    score += (isAboveM7Filtered && parseFloat(t.priceChangePercent) > 0) ? 15 : 0; 
-                }
-
-                stats[s] = { s, price, fund: parseFloat(premiumMap[s]?.lastFundingRate || 0), drvScore, isAboveM7: isAboveM7Filtered, score, ttp, tsl, peak: peakPrices[s], dVol: dynamicVolatility };
+                stats[s] = { s, price, score, ttp, tsl, peak: peakPrices[s], dVol: avgVol, drv, trendUp };
             });
             render();
         } catch (e) { console.error(e); }
@@ -172,34 +109,32 @@
     function render() {
         const dashboard = document.getElementById('dashboard');
         const list = Object.values(stats).sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
-        dashboard.innerHTML = list.slice(0, 24).map(x => `
-            <div class="card p-3 rounded-lg ${(x.score >= 90) ? 'hunt-card' : 'base-card'} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
-                <div class="flex justify-between items-start mb-1">
-                    <div class="flex gap-1">
-                        <span class="px-1 rounded ${x.isAboveM7 ? 'tag-active' : 'bg-zinc-800 text-zinc-500'}">M7_VLD</span>
-                        <span class="px-1 rounded bg-zinc-900 text-orange-400 border border-orange-900/50">VOL:${(x.dVol*100).toFixed(2)}%</span>
-                    </div>
-                    <span class="text-xs font-black text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
+        dashboard.innerHTML = list.slice(0, 16).map(x => `
+            <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-[7px] ${x.trendUp ? 'text-green-400' : 'text-zinc-600'} font-bold">
+                        TREND:${x.trendUp ? '強勢多頭 (UP)' : '弱勢盤整 (SIDE)'}
+                    </span>
+                    <span class="text-yellow-500 font-black">SCORE(評分): ${x.score.toFixed(0)}</span>
                 </div>
-                <div class="flex justify-between items-center mt-1">
-                    <h2 class="text-xl font-black text-white">${x.s.replace('USDT','')}</h2>
-                    <div class="text-right text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
+                <div class="flex justify-between items-end my-2 border-b border-zinc-800 pb-1">
+                    <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
+                    <div class="text-right text-zinc-400 text-[10px] font-bold">現價: $${x.price.toFixed(4)}</div>
                 </div>
-                <div class="grid grid-cols-2 gap-1 mt-2 mb-2 text-[8px] font-bold text-zinc-400">
-                    <div class="bg-black p-1 border border-zinc-800 text-blue-400 text-center">DRV: ${x.drvScore.toFixed(0)}</div>
-                    <div class="bg-black p-1 border border-zinc-800 text-right">PEAK: $${x.peak.toFixed(4)}</div>
+                <div class="grid grid-cols-2 gap-2 text-[8px] mb-2 font-bold">
+                    <div class="text-orange-400">POC位移: ${(x.dVol*100).toFixed(2)}%</div>
+                    <div class="text-blue-400 text-right">DRV(驅動): ${x.drv.toFixed(0)}</div>
                 </div>
+                <div class="text-[8px] text-zinc-500 mb-2 italic">最高價(PEAK): $${x.peak.toFixed(4)}</div>
                 <div class="tsl-box">
-                    <span class="text-red-500 font-bold">SL: $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-500 font-black">TP: $${x.ttp.toFixed(4)}</span>
+                    <span class="text-red-500 font-black">SL(移動止損): $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500 font-black">TP(移動止盈): $${x.ttp.toFixed(4)}</span>
                 </div>
             </div>`).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR (停止雷達)" : "START RADAR (開啟雷達)"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
-    function manualAdd() { const input = document.getElementById('searchInput'); let s = input.value.toUpperCase().trim(); if(s) { if(!s.endsWith('USDT')) s+='USDT'; pinned.add(s); input.value=''; render(); } }
-    setupSliders();
 </script>
 </body>
 </html>

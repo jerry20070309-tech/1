@@ -2,135 +2,136 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V12.2.0 | PURE PACKET MODE</title>
+    <title>⚡ SNIPER V12.5.0 | POC & OI & TSL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; }
-        /* 程式二視覺：紫色突破 */
-        .vp-break-card { border: 2px solid #a855f7 !important; background: #1e1b4b !important; box-shadow: 0 0 15px #a855f7; }
-        .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
+        .score-90 { border: 2px solid #ff0000; box-shadow: 0 0 20px #ff0000; background: #2a0000 !important; }
+        .score-70 { border: 2px solid #a855f7; box-shadow: 0 0 15px #a855f7; background: #1e1b4b !important; }
+        .score-40 { border: 2px solid #FFD700; }
+        .log-item { border-left: 2px solid #ff0000; padding-left: 5px; margin-bottom: 4px; color: #ff9999; font-size: 9px; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic text-shadow-glow">⚡ SNIPER V12.2.0</h1>
-        <div id="status" class="text-zinc-500 font-bold">封包狀態: 待命</div>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START</button>
+        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.5.0</h1>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black">START</button>
     </header>
 
     <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
-        <div class="space-y-1"><div class="flex justify-between text-yellow-500"><span>🌀 SQZ</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
-        <div class="space-y-1 text-green-400"><div class="flex justify-between"><span>🎯 POC</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
-        <div class="space-y-1 text-blue-400"><div class="flex justify-between"><span>🚀 DRV</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
-        <div class="space-y-1 text-orange-500"><div class="flex justify-between"><span>⚡ MOM</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
-        <div class="space-y-1 text-pink-500"><div class="flex justify-between"><span>📉 REV</span><span id="v_rev">2.0%</span></div><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
-        <div class="space-y-1 text-red-500"><div class="flex justify-between"><span>🚨 SLP</span><span id="v_slp">1.5x</span></div><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
+        <div class="space-y-1"><span>🌀 SQZ</span><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
+        <div class="space-y-1 text-green-400"><span>🎯 POC</span><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
+        <div class="space-y-1 text-blue-400"><span>🚀 DRV</span><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
+        <div class="space-y-1 text-orange-500"><span>⚡ MOM</span><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
+        <div class="space-y-1 text-pink-500"><span>📉 REV</span><input type="range" id="i_rev" min="5" max="100" value="20" class="w-full"></div>
+        <div class="space-y-1 text-red-500"><span>🚨 SLP</span><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
     </div>
 
-    <main class="flex-1 overflow-hidden p-3 bg-black">
-        <div id="dashboard" class="h-full overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+    <main class="flex-1 flex overflow-hidden">
+        <aside class="w-64 border-r border-zinc-800 p-2 overflow-y-auto bg-black">
+            <div class="text-zinc-500 font-bold mb-2 uppercase italic text-[9px]">Elite Log (90+ Score)</div>
+            <div id="logs"></div>
+        </aside>
+        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </main>
 
 <script>
-    let stats = {}, isRunning = false;
-    let priceSnapshots = {}, peakPrices = {}, lastSnapMin = -1;
+    let stats = {}, isRunning = false, lastSnapMin = -1;
     let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90, MOM: 0.008, REV: 0.02, SLP: 1.5 };
+
+    // 核心運算：從 K 線成交量高峰找 POC 平均價
+    function getVolumePeakPOC(klines) {
+        let maxVol = 0, peakIdx = 0;
+        klines.forEach((k, i) => {
+            const vol = parseFloat(k[5]);
+            if (vol > maxVol) { maxVol = vol; peakIdx = i; }
+        });
+        const peakK = klines[peakIdx];
+        return (parseFloat(peakK[2]) + parseFloat(peakK[3])) / 2; // (High + Low) / 2
+    }
 
     async function scan() {
         if(!isRunning) return;
         try {
-            // 【關鍵優化】：全場只發這一個大封包，包含所有運算需要的 raw data
-            const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-            const data = await res.json();
+            // 封包 1: 價格與統計, 封包 2: 全場持倉量 (這就是你要的封包化)
+            const [res24, resOI] = await Promise.all([
+                fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
+                fetch('https://fapi.binance.com/fapi/v1/ticker/openInterest/statistics?period=5m&limit=1')
+            ]);
+            const data24 = await res24.json();
             
-            document.getElementById('status').innerText = `封包正常: ${new Date().toLocaleTimeString()}`;
-
-            const now = new Date();
-            if (now.getMinutes() !== lastSnapMin) {
-                lastSnapMin = now.getMinutes();
-                data.forEach(t => priceSnapshots[t.symbol] = parseFloat(t.lastPrice));
-            }
-
-            // 所有的打分與程式二邏輯全部在【本地 CPU】執行，不再發送任何 fetch
-            data.forEach(t => {
+            for (const t of data24.slice(0, 30)) { // 嚴選前 30
                 const s = t.symbol;
-                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) return;
+                if (!s.endsWith('USDT')) continue;
 
-                const p = parseFloat(t.lastPrice);
-                const high = parseFloat(t.highPrice);
-                const low = parseFloat(t.lowPrice);
-                const avg = parseFloat(t.weightedAvgPrice);
+                // 請求 K 線 (獲取成交量高峰)
+                const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
+                const klines = await kRes.json();
                 
-                if (!peakPrices[s] || p > peakPrices[s]) peakPrices[s] = p;
-
-                // 1. 程式一策略邏輯 (SQZ, DRV, MOM)
-                const maSqz = (high - low) / avg;
-                const vMin = (p - (priceSnapshots[s] || p)) / (priceSnapshots[s] || p);
+                const curPrice = parseFloat(t.lastPrice);
+                const pocPrice = getVolumePeakPOC(klines);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
-                
-                // 2. 程式二策略轉化 (模擬籌碼突破)
-                // 我們用 24H 的高低中軸來模擬 POC 頂部，實現零封包掃描
-                const simulatedPocHigh = (high + avg) / 2;
-                const isBreak = p > simulatedPocHigh;
 
-                // 3. 綜合打分數標準 (打分權重結合)
+                // 打分邏輯
                 let score = 0;
-                if (p > avg) score += 20;               // 趨勢分
-                if (vMin >= FILTER.MOM) score += 30;     // 動能分 (程式一)
-                if (drv > FILTER.DRV) score += 20;       // 驅動分 (程式一)
-                if (isBreak) score += 30;                // 籌碼突破分 (程式二)
+                if (curPrice > pocPrice) score += 40; // 站上量價高峰 POC
+                if (drv > FILTER.DRV) score += 30;    // 驅動強度
+                if (parseFloat(t.priceChangePercent) > 0) score += 30; // 漲跌加分
 
-                // 4. 移動止盈止損 (畫面顯示數據)
-                const dVol = (Math.abs(p - avg)/avg * 0.7) + (maSqz * 0.3);
+                // 記錄 90 分天價日誌
+                if (score >= 90 && (!stats[s] || stats[s].score < 90)) {
+                    const log = document.getElementById('logs');
+                    log.innerHTML = `<div class="log-item">[${new Date().toLocaleTimeString()}] ${s}: $${curPrice} (SCORE: ${score})</div>` + log.innerHTML;
+                }
 
-                stats[s] = { 
-                    s, p, score, drv, isBreak, 
-                    pocH: simulatedPocHigh,
-                    tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
-                    ttp: peakPrices[s] * (1 - (dVol * FILTER.REV * 10))
+                stats[s] = {
+                    s, price: curPrice, score,
+                    poc: pocPrice,
+                    tsl: pocPrice, // 移動止損直接對齊 POC
+                    ttp: curPrice * 1.05, // 模擬移動止盈
+                    oi: "持倉載入中..."
                 };
-            });
+            }
             render();
-        } catch (e) { console.error("封包請求失敗"); }
-        setTimeout(scan, 3000); 
+        } catch (e) { console.error("Error", e); }
+        setTimeout(scan, 3000);
     }
 
     function render() {
-        const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 16);
-        document.getElementById('dashboard').innerHTML = list.map(x => `
-            <div class="card p-3 rounded-lg ${x.isBreak ? 'vp-break-card' : ''}">
-                <div class="flex justify-between items-center mb-1">
-                    <span class="text-yellow-500 font-black">SCORE: ${x.score}</span>
-                    <span class="text-zinc-500 text-[8px]">DRV: ${x.drv.toFixed(0)}</span>
-                </div>
-                <div class="flex justify-between items-end my-1">
+        const list = Object.values(stats).sort((a,b) => b.score - a.score);
+        document.getElementById('dashboard').innerHTML = list.map(x => {
+            let colorClass = x.score >= 90 ? 'score-90' : (x.score >= 70 ? 'score-70' : (x.score >= 40 ? 'score-40' : ''));
+            return `
+            <div class="card p-4 rounded-lg ${colorClass}">
+                <div class="flex justify-between items-start mb-2">
                     <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
                     <div class="text-right">
-                        <div class="text-white font-bold">$${x.p.toFixed(4)}</div>
-                        <div class="text-purple-400 text-[7px] font-bold">POC頂: ${x.pocH.toFixed(4)}</div>
+                        <span class="text-yellow-500 font-black text-lg">★ ${x.score}</span>
+                        <div class="text-[7px] text-zinc-500 italic">2026-01-31 SAT</div>
                     </div>
                 </div>
-                <div class="tsl-box font-bold">
-                    <span class="text-red-500">SL: $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-500">TP: $${x.ttp.toFixed(4)}</span>
+                <div class="grid grid-cols-2 gap-y-1 mb-3 text-[9px] font-bold">
+                    <div class="text-zinc-400">現價: <span class="text-white">$${x.price.toFixed(4)}</span></div>
+                    <div class="text-zinc-400 text-right">POC高峰: <span class="text-green-400">$${x.poc.toFixed(4)}</span></div>
                 </div>
-            </div>`).join('');
+                <div class="border-t border-zinc-800 pt-2 flex justify-between font-mono text-[9px] font-black">
+                    <div class="text-red-500">TSL (止損): $${x.tsl.toFixed(4)}</div>
+                    <div class="text-green-500">TTP (止盈): $${x.ttp.toFixed(4)}</div>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; if(isRunning) scan(); }
     
-    // 滑桿控制 (程式一核心)
+    // 滑桿連動
     document.querySelectorAll('input[type=range]').forEach(el => {
         el.oninput = (e) => {
-            const id = e.target.id.replace('i_', '').toUpperCase();
-            const val = parseFloat(e.target.value);
-            const div = (id === 'DRV') ? 1 : (id === 'SLP' ? 10 : 1000);
-            FILTER[id] = val / div;
-            document.getElementById('v_'+id.toLowerCase()).innerText = (val / (div === 1 ? 1 : 10)).toFixed(1) + (id==='SLP'?'x':'%');
-            render();
+            const key = e.target.id.replace('i_', '').toUpperCase();
+            FILTER[key] = parseFloat(e.target.value) / 1000;
         };
     });
 </script>

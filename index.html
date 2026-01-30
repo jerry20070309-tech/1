@@ -2,23 +2,23 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V12.1.0 | PACKET OPTIMIZED</title>
+    <title>⚡ SNIPER V12.2.0 | PURE PACKET MODE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
         .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; }
-        .vp-break-card { border: 2px solid #a855f7 !important; background: #1e1b4b !important; box-shadow: 0 0 20px #a855f7; }
+        /* 程式二視覺：紫色突破 */
+        .vp-break-card { border: 2px solid #a855f7 !important; background: #1e1b4b !important; box-shadow: 0 0 15px #a855f7; }
         .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
-        input[type=range] { accent-color: #FFD700; height: 4px; }
     </style>
 </head>
 <body class="h-screen flex flex-col text-[10px]">
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
-        <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER V12.1.0</h1>
-        <div id="klineStatus" class="text-zinc-500 font-bold">[NETWORK: STABLE]</div>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500 text-xs">START RADAR</button>
+        <h1 class="text-2xl font-black text-yellow-500 italic text-shadow-glow">⚡ SNIPER V12.2.0</h1>
+        <div id="status" class="text-zinc-500 font-bold">封包狀態: 待命</div>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-8 py-1 rounded font-black hover:bg-blue-500">START</button>
     </header>
 
     <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
@@ -35,85 +35,67 @@
     </main>
 
 <script>
-    let stats = {}, vpResults = {}, isRunning = false;
+    let stats = {}, isRunning = false;
     let priceSnapshots = {}, peakPrices = {}, lastSnapMin = -1;
     let FILTER = { SQZ: 0.012, POC: 0.011, DRV: 90, MOM: 0.008, REV: 0.02, SLP: 1.5 };
 
-    // --- 籌碼分析運算 (純計算邏輯，不含 fetch) ---
-    function analyzeVP(klines, currentPrice) {
-        let maxH = 0, hIdx = 0;
-        klines.forEach((k, i) => { if (parseFloat(k[2]) > maxH) { maxH = parseFloat(k[2]); hIdx = i; } });
-        const range = klines.slice(hIdx);
-        if (range.length < 5) return { isBreak: false, pocH: 0 };
-        const lows = range.map(k => parseFloat(k[3])), highs = range.map(k => parseFloat(k[2]));
-        const minP = Math.min(...lows), maxP = Math.max(...highs);
-        const binSize = (maxP - minP) / 20, bins = new Array(20).fill(0);
-        range.forEach(k => {
-            const idx = Math.min(19, Math.floor(((parseFloat(k[2])+parseFloat(k[3]))/2 - minP) / binSize));
-            bins[idx] += parseFloat(k[5]);
-        });
-        const pocH = minP + (bins.indexOf(Math.max(...bins)) * binSize) + binSize;
-        return { isBreak: currentPrice > pocH, pocH: pocH };
-    }
-
-    // --- 核心 API 請求優化版 ---
     async function scan() {
         if(!isRunning) return;
         try {
-            // 封包 1: 一次拿回全場 24hr 數據 (絕對正確的路徑)
+            // 【關鍵優化】：全場只發這一個大封包，包含所有運算需要的 raw data
             const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-            const tickers = await res.json();
-            const now = new Date();
+            const data = await res.json();
+            
+            document.getElementById('status').innerText = `封包正常: ${new Date().toLocaleTimeString()}`;
 
-            // 每 5 分鐘快照一次 (MOM 使用)
-            if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
+            const now = new Date();
+            if (now.getMinutes() !== lastSnapMin) {
                 lastSnapMin = now.getMinutes();
-                tickers.forEach(t => priceSnapshots[t.symbol] = parseFloat(t.lastPrice));
+                data.forEach(t => priceSnapshots[t.symbol] = parseFloat(t.lastPrice));
             }
 
-            // 提取符合條件的幣 (USDT 結尾 & 非主流)
-            const candidates = tickers.filter(t => t.symbol.endsWith('USDT') && !['BTCUSDT','ETHUSDT'].includes(t.symbol));
-
-            for (const t of candidates) {
+            // 所有的打分與程式二邏輯全部在【本地 CPU】執行，不再發送任何 fetch
+            data.forEach(t => {
                 const s = t.symbol;
-                const price = parseFloat(t.lastPrice);
-                const avgPrice = parseFloat(t.weightedAvgPrice);
-                if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
+                if (!s.endsWith('USDT') || ['BTCUSDT','ETHUSDT'].includes(s)) return;
 
-                // 程式一策略：本地計算
-                const vMin = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
+                const p = parseFloat(t.lastPrice);
+                const high = parseFloat(t.highPrice);
+                const low = parseFloat(t.lowPrice);
+                const avg = parseFloat(t.weightedAvgPrice);
+                
+                if (!peakPrices[s] || p > peakPrices[s]) peakPrices[s] = p;
+
+                // 1. 程式一策略邏輯 (SQZ, DRV, MOM)
+                const maSqz = (high - low) / avg;
+                const vMin = (p - (priceSnapshots[s] || p)) / (priceSnapshots[s] || p);
                 const drv = Math.min(100, (Math.abs(parseFloat(t.priceChangePercent)) / (parseFloat(t.quoteVolume) / 1e8)) * 15);
                 
-                // ！！！優化重點：只有當分數可能及格，或者每 60 秒才對該幣發一次 K 線請求 ！！！
-                // 這樣可以避免每 3 秒噴幾百個請求
-                if (!vpResults[s] || (now.getSeconds() === 0 && now.getMilliseconds() < 1000)) {
-                    // 這裡的請求會被限制在每分鐘一次，或者初始載入時
-                    const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${s}&interval=1h&limit=100`);
-                    const klines = await kRes.json();
-                    vpResults[s] = analyzeVP(klines, price);
-                }
+                // 2. 程式二策略轉化 (模擬籌碼突破)
+                // 我們用 24H 的高低中軸來模擬 POC 頂部，實現零封包掃描
+                const simulatedPocHigh = (high + avg) / 2;
+                const isBreak = p > simulatedPocHigh;
 
-                // 打分數
+                // 3. 綜合打分數標準 (打分權重結合)
                 let score = 0;
-                if (price > avgPrice) score += 20;
-                if (vMin >= FILTER.MOM) score += 30;
-                if (drv > FILTER.DRV) score += 20;
-                if (vpResults[s] && vpResults[s].isBreak) score += 30; // 程式二籌碼加分
+                if (p > avg) score += 20;               // 趨勢分
+                if (vMin >= FILTER.MOM) score += 30;     // 動能分 (程式一)
+                if (drv > FILTER.DRV) score += 20;       // 驅動分 (程式一)
+                if (isBreak) score += 30;                // 籌碼突破分 (程式二)
 
-                const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
-                const dVol = (Math.abs(price - avgPrice)/avgPrice * 0.7) + (maSqz * 0.3);
+                // 4. 移動止盈止損 (畫面顯示數據)
+                const dVol = (Math.abs(p - avg)/avg * 0.7) + (maSqz * 0.3);
 
                 stats[s] = { 
-                    s, price, score, drv, 
-                    pocH: vpResults[s]?.pocH || 0, 
-                    isBreak: vpResults[s]?.isBreak || false,
+                    s, p, score, drv, isBreak, 
+                    pocH: simulatedPocHigh,
                     tsl: peakPrices[s] * (1 - (dVol * FILTER.SLP)),
                     ttp: peakPrices[s] * (1 - (dVol * FILTER.REV * 10))
                 };
-            }
+            });
             render();
-        } catch (e) { console.error("API 請求限制或錯誤"); }
-        setTimeout(scan, 3000);
+        } catch (e) { console.error("封包請求失敗"); }
+        setTimeout(scan, 3000); 
     }
 
     function render() {
@@ -121,24 +103,36 @@
         document.getElementById('dashboard').innerHTML = list.map(x => `
             <div class="card p-3 rounded-lg ${x.isBreak ? 'vp-break-card' : ''}">
                 <div class="flex justify-between items-center mb-1">
-                    <span class="text-[8px] text-zinc-500 font-bold">DRV: ${x.drv.toFixed(0)}</span>
                     <span class="text-yellow-500 font-black">SCORE: ${x.score}</span>
+                    <span class="text-zinc-500 text-[8px]">DRV: ${x.drv.toFixed(0)}</span>
                 </div>
                 <div class="flex justify-between items-end my-1">
-                    <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
+                    <h2 class="text-2xl font-black text-white italic">${x.s.replace('USDT','')}</h2>
                     <div class="text-right">
-                        <div class="text-white font-bold">$${x.price.toFixed(4)}</div>
-                        <div class="text-yellow-600 text-[8px] font-bold">POC頂: ${x.pocH.toFixed(4)}</div>
+                        <div class="text-white font-bold">$${x.p.toFixed(4)}</div>
+                        <div class="text-purple-400 text-[7px] font-bold">POC頂: ${x.pocH.toFixed(4)}</div>
                     </div>
                 </div>
-                <div class="tsl-box">
-                    <span class="text-red-500 font-black">SL: $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-500 font-black">TP: $${x.ttp.toFixed(4)}</span>
+                <div class="tsl-box font-bold">
+                    <span class="text-red-500">SL: $${x.tsl.toFixed(4)}</span>
+                    <span class="text-green-500">TP: $${x.ttp.toFixed(4)}</span>
                 </div>
             </div>`).join('');
     }
 
     function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP" : "START"; if(isRunning) scan(); }
+    
+    // 滑桿控制 (程式一核心)
+    document.querySelectorAll('input[type=range]').forEach(el => {
+        el.oninput = (e) => {
+            const id = e.target.id.replace('i_', '').toUpperCase();
+            const val = parseFloat(e.target.value);
+            const div = (id === 'DRV') ? 1 : (id === 'SLP' ? 10 : 1000);
+            FILTER[id] = val / div;
+            document.getElementById('v_'+id.toLowerCase()).innerText = (val / (div === 1 ? 1 : 10)).toFixed(1) + (id==='SLP'?'x':'%');
+            render();
+        };
+    });
 </script>
 </body>
 </html>

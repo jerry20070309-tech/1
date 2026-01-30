@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER V11.8.9 | 終極整合版</title>
+    <title>⚡ SNIPER V11.8.9 | POC & MA & OI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
@@ -11,7 +11,8 @@
         .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
         .pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
         .tsl-box { border-top: 1px dashed #333; margin-top: 6px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
-        .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: bold; cursor: pointer; }
+        .btn-preset { background: #1a1a1a; border: 1px solid #333; padding: 2px 8px; border-radius: 4px; transition: 0.2s; font-size: 9px; font-weight: bold; }
+        .btn-preset:hover { background: #333; color: #fff; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
         input[type=range] { accent-color: #FFD700; cursor: pointer; }
     </style>
@@ -24,17 +25,18 @@
             <div class="flex gap-2">
                 <button onclick="applyPreset('Ambush')" class="btn-preset text-blue-400 border-blue-900">週末埋伏 (Ambush)</button>
                 <button onclick="applyPreset('Hunt')" class="btn-preset text-red-400 border-red-900">強勢獵殺 (Hunt)</button>
+                <button onclick="applyPreset('Spike')" class="btn-preset text-purple-400 border-purple-900">暴力異動 (Spike)</button>
                 <button onclick="applyPreset('Apex')" class="btn-preset text-yellow-500 border-yellow-500 bg-yellow-950/30">⚡ 頂峰狙擊 (Apex)</button>
             </div>
         </div>
         <div class="flex gap-4">
-            <div id="klineStatus" class="text-zinc-500 flex items-center">數據讀取中...</div>
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500">START RADAR</button>
+            <div id="klineStatus" class="text-zinc-500 flex items-center text-[9px]">數據對齊中...</div>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-6 py-1 rounded font-black hover:bg-blue-500">START RADAR (開啟雷達)</button>
         </div>
     </header>
 
     <div class="bg-zinc-900/50 p-3 border-b border-yellow-900/30 grid grid-cols-6 gap-4 font-bold text-zinc-400">
-        <div class="space-y-1"><div class="flex justify-between text-yellow-500 text-[9px]"><span>🌀 SQZ (壓縮度)</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
+        <div class="space-y-1"><div class="flex justify-between text-yellow-500 text-[9px]"><span>🌀 SQZ (壓縮度)</span><span id="v_sqz">1.2%</span></div><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full border-none"></div>
         <div class="space-y-1 text-green-400"><div class="flex justify-between text-[9px]"><span>🎯 POC (基準位移)</span><span id="v_poc">1.1%</span></div><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
         <div class="space-y-1 text-blue-400"><div class="flex justify-between text-[9px]"><span>🚀 DRV (驅動強度)</span><span id="v_drv">90</span></div><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
         <div class="space-y-1 text-orange-500"><div class="flex justify-between text-[9px]"><span>⚡ MOM (即時動能)</span><span id="v_mom">0.8%</span></div><input type="range" id="i_mom" min="1" max="50" value="8" class="w-full"></div>
@@ -42,7 +44,13 @@
         <div class="space-y-1 text-red-500"><div class="flex justify-between text-[9px]"><span>🚨 SLP (止損保護)</span><span id="v_slp">1.5x</span></div><input type="range" id="i_slp" min="5" max="50" value="15" class="w-full"></div>
     </div>
 
-    <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-black"></div>
+    <main class="flex-1 overflow-hidden flex">
+        <div id="dashboard" class="flex-1 p-3 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-black"></div>
+        <aside class="w-64 border-l border-yellow-900 bg-zinc-950 p-2 overflow-y-auto text-[9px]">
+            <div class="text-red-500 font-bold mb-2 border-b border-red-900">戰鬥日誌 (LOG)</div>
+            <div id="logContainer" class="space-y-1 text-zinc-500"></div>
+        </aside>
+    </main>
 
 <script>
     let stats = {}, pinned = new Set(), isRunning = false;
@@ -64,19 +72,37 @@
                 let v = parseFloat(e.target.value);
                 FILTER[b.key] = v / b.div;
                 document.getElementById(b.vid).innerText = (v / (b.div === 1 ? 1 : 10)).toFixed(1) + b.suffix;
+                if (isRunning) render();
             };
         });
     };
 
+    function applyPreset(type) {
+        const presets = {
+            'Ambush': { sqz: 8, poc: 5, drv: 110, mom: 5, rev: 35, slp: 10 },
+            'Hunt':   { sqz: 15, poc: 12, drv: 85, mom: 12, rev: 20, slp: 20 },
+            'Spike':  { sqz: 25, poc: 20, drv: 60, mom: 25, rev: 10, slp: 35 },
+            'Apex':   { sqz: 35, poc: 25, drv: 120, mom: 40, rev: 5, slp: 45 }
+        };
+        const p = presets[type];
+        Object.keys(p).forEach(k => {
+            const input = document.getElementById('i_' + k);
+            if(input) { input.value = p[k]; input.dispatchEvent(new Event('input')); }
+        });
+    }
+
     async function scan() {
         if(!isRunning) return;
         try {
+            // 同時抓取行情與持倉量
             const [tRes, oiRes] = await Promise.all([
                 fetch('https://fapi.binance.com/fapi/v1/ticker/24hr'),
                 fetch('https://fapi.binance.com/fapi/v1/openInterest/all?limit=100')
             ]);
+            
             const tickers = await tRes.json();
-            const oiMap = Object.fromEntries((await oiRes.json()).map(o => [o.symbol, parseFloat(o.openInterest)]));
+            const oiData = await oiRes.json();
+            const oiMap = Object.fromEntries(oiData.map(o => [o.symbol, parseFloat(o.openInterest)]));
 
             const now = new Date();
             if (now.getMinutes() % 5 === 0 && now.getMinutes() !== lastSnapMin) {
@@ -96,24 +122,20 @@
                 const avgPrice = parseFloat(t.weightedAvgPrice);
                 const currentOI = oiMap[s] || 0;
                 const oldOI = oiSnapshots[s] || currentOI;
-                const oiChange = ((currentOI - oldOI) / oldOI) * 100;
+                const oiChange = ((currentOI - oldOI) / (oldOI || 1)) * 100;
 
                 if (!peakPrices[s] || price > peakPrices[s]) peakPrices[s] = price;
 
-                // MA 趨勢過濾 (MA7/MA25)
                 const ma7 = avgPrice;
                 const ma25 = (parseFloat(t.highPrice) + parseFloat(t.lowPrice)) / 2;
                 const trendUp = price > ma7 && ma7 > ma25;
 
-                // POC 位移核心算法
                 const pocPrice = avgPrice * (1 - FILTER.POC); 
-                const pocDisp = Math.abs(price - pocPrice) / pocPrice;
+                const pocDisp = Math.abs(price - pocPrice) / pocPrice; 
                 const maSqz = (parseFloat(t.highPrice) - parseFloat(t.lowPrice)) / avgPrice;
                 const v5m = (price - (priceSnapshots[s] || price)) / (priceSnapshots[s] || price);
                 
                 const avgVol = (pocDisp * 0.7) + (maSqz * 0.2) + (Math.abs(v5m) * 0.1);
-
-                // 動態止盈止損
                 const tsl = peakPrices[s] * (1 - (avgVol * FILTER.SLP)); 
                 const ttp = peakPrices[s] * (1 - (avgVol * FILTER.REV * 10)); 
 
@@ -137,17 +159,19 @@
         dashboard.innerHTML = list.slice(0, 16).map(x => `
             <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''} ${pinned.has(x.s)?'pinned':''}" onclick="togglePin('${x.s}')">
                 <div class="flex justify-between items-center mb-1 font-bold">
-                    <span class="text-[7px] ${x.trendUp ? 'text-green-400' : 'text-zinc-600'}">TREND(趨勢): ${x.trendUp ? 'UP' : 'SIDE'}</span>
+                    <span class="text-[7px] ${x.trendUp ? 'text-green-400' : 'text-zinc-600'}">
+                        TREND(趨勢):${x.trendUp ? 'UP' : 'SIDE'}
+                    </span>
                     <span class="text-yellow-500">SCORE: ${x.score.toFixed(0)}</span>
                 </div>
-                <div class="flex justify-between items-end my-1">
+                <div class="flex justify-between items-end my-2 border-b border-zinc-800 pb-1">
                     <h2 class="text-2xl font-black text-white">${x.s.replace('USDT','')}</h2>
                     <div class="text-right">
-                        <div class="text-[10px] text-white font-bold">$${x.price.toFixed(4)}</div>
-                        <div class="text-[7px] ${x.oiChange >= 0 ? 'text-green-500' : 'text-red-500'}">OI: ${(x.oi/1e6).toFixed(1)}M (${x.oiChange >= 0 ? '+' : ''}${x.oiChange.toFixed(1)}%)</div>
+                        <div class="text-white text-[10px] font-bold">$${x.price.toFixed(4)}</div>
+                        <div class="text-[7px] ${x.oiChange >= 0 ? 'text-cyan-400' : 'text-red-400'}">OI: ${(x.oi/1e6).toFixed(1)}M (${x.oiChange >= 0 ? '+' : ''}${x.oiChange.toFixed(1)}%)</div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-2 text-[8px] my-1 font-bold">
+                <div class="grid grid-cols-2 gap-2 text-[8px] mb-2 font-bold">
                     <div class="text-orange-400">POC位移: ${(x.dVol*100).toFixed(2)}%</div>
                     <div class="text-blue-400 text-right">DRV(驅動): ${x.drv.toFixed(0)}</div>
                 </div>
@@ -158,20 +182,8 @@
             </div>`).join('');
     }
 
-    function toggleSystem() { isRunning = !isRunning; if(isRunning) scan(); }
+    function toggleSystem() { isRunning = !isRunning; document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; if(isRunning) scan(); }
     function togglePin(s) { pinned.has(s) ? pinned.delete(s) : pinned.add(s); render(); }
-    function applyPreset(type) {
-        const presets = {
-            'Ambush': { sqz: 8, poc: 5, drv: 110, mom: 5, rev: 35, slp: 10 },
-            'Hunt':   { sqz: 15, poc: 12, drv: 85, mom: 12, rev: 20, slp: 20 },
-            'Apex':   { sqz: 35, poc: 25, drv: 120, mom: 40, rev: 5, slp: 45 }
-        };
-        const p = presets[type];
-        Object.keys(p).forEach(k => {
-            const input = document.getElementById('i_' + k);
-            if(input) { input.value = p[k]; input.dispatchEvent(new Event('input')); }
-        });
-    }
     setupSliders();
 </script>
 </body>

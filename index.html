@@ -2,45 +2,68 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER X-TREME V12.0 | SAT-ONLY HYBRID</title>
+    <title>⚡ HELPER X-TREME V12.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
-        body { background: #020202; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #080808; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; }
-        .hunt-card { border: 2px solid #ff0000; background: #1a0000 !important; box-shadow: 0 0 20px #ff0000; animation: blink 0.8s infinite; }
-        .decouple-card { border: 2px solid #a855f7 !important; background: #0f0720 !important; box-shadow: 0 0 15px #a855f7; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
-        .lv-bar { height: 4px; background: #333; border-radius: 2px; overflow: hidden; margin-top: 4px; }
-        .lv-fill { height: 100%; background: #00ffcc; transition: width 0.5s; }
-        .atr-tag { font-size: 8px; color: #888; border: 1px solid #333; padding: 1px 4px; border-radius: 3px; }
+        body { background: #121212; color: #e0e0e0; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+        
+        /* 網格背景圖 */
+        .bg-grid {
+            background-image: linear-gradient(to right, #1a1a1a 1px, transparent 1px), linear-gradient(to bottom, #1a1a1a 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* 卡片基礎樣式 */
+        .card { background: rgba(20, 20, 20, 0.9); border: 1px solid #333; transition: 0.3s; position: relative; backdrop-filter: blur(5px); }
+        .hunt-card { border: 2px solid #ff4444; box-shadow: 0 0 15px rgba(255, 68, 68, 0.3); animation: pulse-red 2s infinite; }
+        .decouple-card { border: 2px solid #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+        
+        @keyframes pulse-red { 0% { border-color: #ff4444; } 50% { border-color: #880000; } 100% { border-color: #ff4444; } }
+
+        /* ATR 護盾條 */
+        .shield-bg { height: 6px; background: #222; border-radius: 3px; position: relative; overflow: hidden; }
+        .shield-fill { height: 100%; background: linear-gradient(90deg, #ff4444 0%, #ffeb3b 50%, #4caf50 100%); }
+        .shield-pointer { position: absolute; top: -2px; width: 2px; height: 10px; background: white; box-shadow: 0 0 5px white; }
+
+        /* LV 能量條 */
+        .lv-bar { height: 4px; background: #111; border-radius: 2px; }
+        .lv-fill { height: 100%; background: #00ffcc; box-shadow: 0 0 10px #00ffcc; transition: width 0.5s; }
+
+        /* 頂部裝飾條 */
+        .header-bar { background: linear-gradient(90deg, #3a1c5e 0%, #121212 50%, #3a1c5e 100%); border-bottom: 2px solid #a855f7; }
     </style>
 </head>
-<body class="h-screen flex flex-col text-[10px]">
+<body class="h-screen flex flex-col text-[10px] bg-grid">
 
-    <header class="p-4 border-b border-purple-900 bg-black flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-purple-500 italic">⚡ SNIPER X-TREME</h1>
-            <div id="satStatus" class="px-3 py-1 rounded bg-zinc-900 text-[10px] font-bold">檢測系統環境...</div>
+    <header class="header-bar p-3 flex justify-between items-center shrink-0 shadow-2xl">
+        <div class="flex items-center gap-6">
+            <h1 class="text-3xl font-black text-white italic tracking-tighter">HELPER</h1>
+            <div id="satStatus" class="px-4 py-1 rounded-full border border-zinc-700 bg-black text-zinc-400 text-[10px]">
+                SYSTEM IDLE
+            </div>
         </div>
         <div class="flex gap-4">
-            <button id="sysBtn" onclick="toggleSystem()" class="bg-purple-600 text-white px-8 py-1 rounded font-black hover:bg-purple-500">START RADAR</button>
+            <button id="sysBtn" onclick="toggleSystem()" class="bg-white text-black px-10 py-1.5 rounded-sm font-black hover:bg-purple-500 hover:text-white transition-all uppercase italic">
+                Start Radar
+            </button>
         </div>
     </header>
 
-    <div class="bg-zinc-950 p-3 border-b border-zinc-800 grid grid-cols-5 gap-4 items-center uppercase font-bold text-zinc-500">
-        <div class="flex flex-col"><span>🌀 SQZ (蓄勢)</span><input type="range" id="i_sqz" min="5" max="50" value="12" class="w-full"></div>
-        <div class="flex flex-col"><span>🎯 POC (突破)</span><input type="range" id="i_poc" min="1" max="100" value="11" class="w-full"></div>
-        <div class="flex flex-col"><span>🚀 DRV (真空)</span><input type="range" id="i_drv" min="10" max="150" value="90" class="w-full"></div>
-        <div class="flex flex-col"><span>💎 DEC (脫鉤)</span><div class="text-purple-400">AUTO WEIGHTING</div></div>
-        <div class="flex flex-col"><span>🛡️ ATR (防禦)</span><div class="text-green-400">60D ADAPTIVE</div></div>
+    <div class="bg-black/60 p-3 border-b border-zinc-800 grid grid-cols-5 gap-6 items-center uppercase text-zinc-500 font-bold">
+        <div class="flex flex-col gap-1"><span>🌀 SQZ (蓄勢)</span><input type="range" id="i_sqz" min="5" max="50" value="12" class="accent-purple-500"></div>
+        <div class="flex flex-col gap-1"><span>🎯 POC (突破)</span><input type="range" id="i_poc" min="1" max="100" value="11" class="accent-purple-500"></div>
+        <div class="flex flex-col gap-1"><span>🚀 DRV (真空)</span><input type="range" id="i_drv" min="10" max="150" value="90" class="accent-purple-500"></div>
+        <div class="flex flex-col text-center"><span class="text-[8px]">💎 DEC (脫鉤權重)</span><div class="text-purple-400 text-xs">DYNAMIC</div></div>
+        <div class="flex flex-col text-center"><span class="text-[8px]">🛡️ ATR (防禦引擎)</span><div class="text-green-400 text-xs">ACTIVE</div></div>
     </div>
 
-    <main class="flex-1 p-3 overflow-y-auto bg-black">
-        <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+    <main class="flex-1 p-4 overflow-y-auto">
+        <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
     </main>
 
 <script>
+    // 策略邏輯完全保留 (如您要求：其餘策略都不動)
     const CONFIG = {
         EXCLUDE: ['BTCUSDT','ETHUSDT','SOLUSDT','XRPUSDT','BNBUSDT'],
         SATURDAY_MODE: new Date().getDay() === 6
@@ -49,15 +72,13 @@
     let stats = {}, isRunning = false;
     let btcSnapshot = { price: 0, chg: 0 };
 
-    // [SAT-ONLY] 初始化顯示
     function initSystem() {
         const status = document.getElementById('satStatus');
         if (CONFIG.SATURDAY_MODE) {
-            status.innerText = "📅 週六模式：高勝率數據隔離中";
-            status.classList.add('text-green-500', 'border', 'border-green-900');
+            status.innerHTML = `<span class="text-green-500">●</span> SATURDAY AMBUSH MODE`;
+            status.style.borderColor = "#052e16";
         } else {
-            status.innerText = "📅 常規模式：全天候監控";
-            status.classList.add('text-zinc-500');
+            status.innerHTML = `<span class="text-zinc-600">●</span> STANDBY MODE`;
         }
     }
 
@@ -81,34 +102,27 @@
                 const vol = parseFloat(t.quoteVolume);
                 if (vol < 5000000) return;
 
-                // --- [W-E] 脫鉤權重邏輯 ---
                 let decouplingWeight = 0;
-                if (altChg > 1.0 && btcSnapshot.chg <= -0.5) decouplingWeight = 30; // 強力脫鉤
+                if (altChg > 1.0 && btcSnapshot.chg <= -0.5) decouplingWeight = 30;
                 else if (altChg > btcSnapshot.chg + 2.5) decouplingWeight = 15;
 
-                // --- [R-1] ATR 波動回歸 (基於24h波幅模擬) ---
                 const range24h = parseFloat(t.highPrice) - parseFloat(t.lowPrice);
                 const atrTP = price + (range24h * 1.2); 
                 const atrSL = price - (range24h * 0.6);
 
-                // --- [L-1] LV 衝刺等級 ---
+                // 計算當前價在 ATR 區間的位置 (0=SL, 100=TP)
+                const shieldPos = Math.min(100, Math.max(0, ((price - atrSL) / (atrTP - atrSL)) * 100));
+
                 const drv = Math.min(100, (Math.abs(altChg) / (vol / 1e8)) * 15);
                 const lv = Math.min(10, Math.round((drv / 10) + (Math.abs(altChg) / 2)));
 
-                // --- [SAT-ONLY] 週六權重修正 ---
                 const sqz = range24h / price;
                 let score = (sqz < 0.012 ? 40 : 10) + (drv > 80 ? 30 : 0) + decouplingWeight;
-                if (CONFIG.SATURDAY_MODE && sqz < 0.008) score += 20; // 週六特別加強蓄勢分
+                if (CONFIG.SATURDAY_MODE && sqz < 0.008) score += 20;
 
                 stats[t.symbol] = {
-                    s: t.symbol,
-                    price,
-                    chg: altChg,
-                    score,
-                    lv,
-                    drv,
-                    atrTP,
-                    atrSL,
+                    s: t.symbol, price, chg: altChg, score, lv, drv,
+                    atrTP, atrSL, shieldPos,
                     isDecoupled: decouplingWeight >= 30,
                     sqz: (sqz * 100).toFixed(2)
                 };
@@ -123,36 +137,49 @@
         const list = Object.values(stats).sort((a,b) => b.score - a.score).slice(0, 16);
 
         dashboard.innerHTML = list.map(x => `
-            <div class="card p-3 rounded-lg ${x.isDecoupled ? 'decouple-card' : (x.score > 70 ? 'hunt-card' : '')}">
-                <div class="flex justify-between items-start">
-                    <h2 class="text-lg font-black text-white">${x.s.replace('USDT','')}</h2>
-                    <span class="text-purple-400 font-bold">SCORE: ${x.score.toFixed(0)}</span>
+            <div class="card p-4 rounded-sm ${x.isDecoupled ? 'decouple-card' : (x.score > 70 ? 'hunt-card' : '')}">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold text-purple-400">SCORE</div>
+                        <div class="text-lg font-black leading-none">${x.score.toFixed(0)}</div>
+                    </div>
                 </div>
                 
-                <div class="flex gap-2 mt-1">
-                    <span class="atr-tag">ATR_TP: ${x.atrTP.toFixed(4)}</span>
-                    <span class="atr-tag">ATR_SL: ${x.atrSL.toFixed(4)}</span>
+                <div class="mb-4">
+                    <div class="flex justify-between text-[7px] text-zinc-500 mb-1 font-bold">
+                        <span>🛡️ SL: ${x.atrSL.toFixed(4)}</span>
+                        <span>TP: ${x.atrTP.toFixed(4)} 🛡️</span>
+                    </div>
+                    <div class="shield-bg">
+                        <div class="shield-fill" style="width: 100%"></div>
+                        <div class="shield-pointer" style="left: ${x.shieldPos}%"></div>
+                    </div>
                 </div>
 
-                <div class="mt-3 flex justify-between items-end">
+                <div class="grid grid-cols-2 gap-4 items-center">
                     <div>
-                        <div class="text-[8px] text-zinc-500 uppercase">Thrust Level (LV ${x.lv})</div>
-                        <div class="lv-bar w-24"><div class="lv-fill" style="width: ${x.lv * 10}%"></div></div>
+                        <div class="text-[8px] text-zinc-500 mb-1">THRUST LEVEL (LV ${x.lv})</div>
+                        <div class="lv-bar"><div class="lv-fill" style="width: ${x.lv * 10}%"></div></div>
                     </div>
                     <div class="text-right">
-                        <div class="${x.chg >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${x.chg}%</div>
-                        <div class="text-zinc-600 text-[8px]">SQZ: ${x.sqz}% | DRV: ${x.drv.toFixed(0)}</div>
+                        <div class="${x.chg >= 0 ? 'text-green-400' : 'text-red-400'} text-lg font-black">${x.chg > 0 ? '+' : ''}${x.chg}%</div>
                     </div>
                 </div>
 
-                ${x.isDecoupled ? '<div class="mt-2 text-center bg-purple-900/50 text-purple-200 text-[8px] py-1 rounded">⚠️ 已偵測到強力脫鉤行情</div>' : ''}
+                <div class="mt-4 pt-2 border-t border-zinc-800 flex justify-between text-[8px] font-bold text-zinc-500">
+                    <span>SQZ: ${x.sqz}%</span>
+                    <span>DRV: ${x.drv.toFixed(0)}</span>
+                </div>
+
+                ${x.isDecoupled ? '<div class="mt-2 text-center bg-purple-600 text-white text-[7px] py-0.5 font-black">DECOUPLING DETECTED</div>' : ''}
             </div>
         `).join('');
     }
 
     function toggleSystem() { 
         isRunning = !isRunning; 
-        document.getElementById('sysBtn').innerText = isRunning ? "STOP RADAR" : "START RADAR"; 
+        document.getElementById('sysBtn').innerText = isRunning ? "Stop Radar" : "Start Radar"; 
         if(isRunning) scan(); 
     }
 

@@ -2,23 +2,26 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>⚡ SNIPER X-TREME | R-1POC MODE</title>
+    <title>⚡ SNIPER X-TREME | R-1POC FULL MODE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap');
         body { background: #050505; color: #FFD700; font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; cursor: pointer; }
-        /* 90分以上或異動強化的邊框 */
-        .hunt-card { border: 2px solid #ff0000; background: #2a0000 !important; box-shadow: 0 0 15px rgba(255, 0, 0, 0.4); }
-        .is-pinned { border: 2px solid #3b82f6 !important; background: #081221 !important; }
+        .card { background: #0a0a0a; border: 1px solid #1a1a1a; transition: 0.3s; position: relative; cursor: pointer; opacity: 0.7; }
         
-        /* 標籤樣式 */
-        .tag-poc { background: #16a34a !important; color: #fff !important; font-weight: 800; }
-        .tag-em { background: #4c1d95; color: #c084fc; }
-        .tag-yao { background: #78350f; color: #fbbf24; animation: blink 0.8s infinite; }
-        .tag-burst { background: #450a0a; color: #f87171; }
-        
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        /* --- UI 分數亮燈邏輯 --- */
+        .score-60 { border-color: #3b82f6 !important; background: #081221 !important; opacity: 0.9; }
+        .score-80 { border-color: #f97316 !important; background: #241205 !important; opacity: 1; }
+        .score-90 { 
+            border: 2px solid #ff0000 !important; 
+            background: #2a0000 !important; 
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.6); 
+            animation: blink 0.6s infinite; 
+            opacity: 1;
+        }
+        .is-pinned { border: 2px solid #3b82f6 !important; opacity: 1; }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
         input[type=range] { accent-color: #FFD700; }
         .tsl-box { border-top: 1px dashed #333; margin-top: 4px; padding-top: 4px; display: flex; justify-content: space-between; font-size: 8px; }
     </style>
@@ -27,16 +30,12 @@
 
     <header class="p-4 border-b border-yellow-900 bg-black flex justify-between items-center shrink-0">
         <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-black text-yellow-500 italic uppercase">⚡ Sniper <span class="text-white">X-TREME</span></h1>
-            <div class="flex gap-2 bg-zinc-900 p-1 rounded border border-zinc-700">
-                <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-transparent text-xs px-2 focus:outline-none w-32 text-white" oninput="render()">
-            </div>
-            <div class="flex gap-2 ml-4">
-                <button onclick="applyPreset('Ambush')" class="px-3 py-1 bg-zinc-800 text-blue-400 rounded hover:bg-zinc-700">週末埋伏</button>
-                <button onclick="applyPreset('Hunt')" class="px-3 py-1 bg-zinc-800 text-red-400 rounded hover:bg-zinc-700">強勢獵殺</button>
-            </div>
+            <h1 class="text-2xl font-black text-yellow-500 italic">⚡ SNIPER <span class="text-white">R-1POC</span></h1>
+            <input id="searchInput" type="text" placeholder="搜尋幣名" class="bg-zinc-900 border border-zinc-700 text-xs px-2 py-1 rounded w-32 text-white" oninput="render()">
+            <button onclick="applyPreset('Ambush')" class="bg-zinc-800 text-blue-400 px-3 py-1 rounded text-[9px] font-bold">週末埋伏</button>
+            <button onclick="applyPreset('Hunt')" class="bg-zinc-800 text-red-400 px-3 py-1 rounded text-[9px] font-bold">強勢獵殺</button>
         </div>
-        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-10 py-1 rounded font-black hover:bg-blue-500 uppercase italic">Start Radar</button>
+        <button id="sysBtn" onclick="toggleSystem()" class="bg-blue-600 text-white px-10 py-1 rounded font-black hover:bg-blue-500 italic uppercase">Start Radar</button>
     </header>
 
     <div class="bg-zinc-900/80 p-3 border-b border-yellow-900/30 grid grid-cols-5 gap-6 uppercase font-bold">
@@ -49,8 +48,8 @@
             <input type="range" id="i_poc" min="1" max="100" value="12" class="w-full">
         </div>
         <div class="space-y-1">
-            <div class="flex justify-between text-yellow-500"><span>⚡ SLP (突變)</span><span id="v_slp">-20%</span></div>
-            <input type="range" id="i_slp" min="5" max="50" value="20" class="w-full">
+            <div class="flex justify-between text-yellow-500"><span>⚡ SLP (突變)</span><span id="v_slp">-2.0%</span></div>
+            <input type="range" id="i_slp" min="5" max="100" value="20" class="w-full">
         </div>
         <div class="space-y-1">
             <div class="flex justify-between text-cyan-400"><span>🚀 DRV (真空)</span><span id="v_drv">85</span></div>
@@ -67,7 +66,7 @@
             <div id="dashboard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"></div>
         </main>
         <aside class="w-72 border-l border-yellow-900 bg-zinc-950 flex flex-col shrink-0">
-            <div class="p-3 border-b border-zinc-800 text-red-500 font-bold uppercase">戰鬥日誌 (90分封印)</div>
+            <div class="p-3 border-b border-zinc-800 text-red-500 font-bold uppercase">戰鬥日誌 (異動紀錄)</div>
             <div id="logContainer" class="flex-1 overflow-y-auto p-2 space-y-1"></div>
         </aside>
     </div>
@@ -84,14 +83,12 @@
         });
     }
 
-    // 更新數值顯示與同步邏輯
+    // 更新數值顯示
     ['i_sqz','i_poc','i_slp','i_drv','i_mom'].forEach(id => {
         document.getElementById(id).oninput = (e) => {
             const val = e.target.value;
             const vid = id.replace('i_', 'v_');
-            const suffix = (id==='i_drv') ? '' : '%';
-            const prefix = (id==='i_slp') ? '-' : '';
-            document.getElementById(vid).innerText = prefix + (id==='i_drv' ? val : (val/10).toFixed(1)) + suffix;
+            document.getElementById(vid).innerText = (id==='i_drv' ? val : (val/10).toFixed(1)) + (id==='i_drv' ? '' : '%');
             if (isRunning) render();
         };
     });
@@ -107,37 +104,40 @@
             const btc = await bRes.json();
             const bChg = parseFloat(btc.priceChangePercent);
 
+            const uSqz = document.getElementById('i_sqz').value / 10;
+            const uPoc = document.getElementById('i_poc').value / 10;
+            const uSlp = -(document.getElementById('i_slp').value / 10);
+            const uDrv = document.getElementById('i_drv').value;
+
             tickers.forEach(t => {
                 const s = t.symbol;
                 if (!s.endsWith('USDT') || s.startsWith('BTC')) return;
 
                 const price = parseFloat(t.lastPrice);
                 const chg = parseFloat(t.priceChangePercent);
-                const vol = parseFloat(t.quoteVolume);
                 const high = parseFloat(t.highPrice), low = parseFloat(t.lowPrice);
+                const vol = parseFloat(t.quoteVolume);
                 
-                // --- 核心 R-1POC 計算 ---
+                // R-1POC 計算
                 const sqzVal = ((high - low) / price) * 100;
                 const drvVal = Math.min(100, (Math.abs(chg) / (vol / 1e8)) * 15);
                 
-                // 讀取拉桿門檻
-                const uPoc = document.getElementById('i_poc').value / 10;
-                const uSqz = document.getElementById('i_sqz').value / 10;
-                const uSlp = -(document.getElementById('i_slp').value / 10);
-
                 const isPoc = Math.abs(chg) > uPoc;
                 const isSqz = sqzVal < uSqz;
                 const isSlp = chg < uSlp;
                 const isYao = (chg > 4 && bChg < -0.5);
 
-                // --- 止盈止損 (換新邏輯) ---
-                // 止損：24h均價下方固定 % 或根據波動調整
-                const tsl = price * 0.982; 
-                // 止盈：真空爆發期加成
-                const ttp = drvVal > 80 ? price * 1.08 : price * 1.05;
+                // --- 評分系統 ---
+                let score = 0;
+                if (isSqz) score += 40;
+                if (isPoc) score += 30;
+                if (drvVal >= uDrv) score += 30;
+                if (isYao) score += 10;
+                score = Math.min(100, score);
 
-                // 評分邏輯 (R-1POC 為主)
-                let score = (isSqz ? 40 : 10) + (isPoc ? 30 : 0) + (drvVal > 80 ? 30 : 0);
+                // --- 止盈止損 (新版邏輯) ---
+                const tsl = price * 0.982; // 守 1.8%
+                const ttp = drvVal > 80 ? price * 1.08 : price * 1.05; // 真空期目標 8%，其餘 5%
 
                 stats[s] = { s, price, chg, score, sqzVal, drvVal, isPoc, isSqz, isSlp, isYao, tsl, ttp };
 
@@ -154,51 +154,59 @@
     function render() {
         const dashboard = document.getElementById('dashboard');
         const search = document.getElementById('searchInput').value.toUpperCase();
+        
         const list = Object.values(stats)
             .filter(x => x.s.includes(search))
             .sort((a,b) => (pinned.has(b.s) - pinned.has(a.s)) || (b.score - a.score));
         
-        dashboard.innerHTML = list.slice(0, 24).map(x => `
-            <div class="card p-3 rounded-lg ${x.score >= 90 ? 'hunt-card' : ''} ${pinned.has(x.s)?'is-pinned':''}" onclick="togglePin('${x.s}')">
-                <div class="flex justify-between items-start mb-1">
-                    <div class="flex gap-1 flex-wrap max-w-[70%]">
-                        <span class="px-1 rounded bg-zinc-800 text-zinc-400">M7_VLD</span>
-                        <span class="px-1 rounded ${x.isSqz ? 'tag-poc' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
-                        <span class="px-1 rounded tag-em">EM</span>
-                        ${x.isYao ? '<span class="tag-yao px-1 rounded text-[8px]">妖</span>' : ''}
-                        ${x.drvVal > 85 ? '<span class="tag-burst px-1 rounded text-[8px]">真空</span>' : ''}
+        dashboard.innerHTML = list.slice(0, 24).map(x => {
+            // 動態取得 UI 顏色 Class
+            let colorClass = "";
+            if (x.score >= 90) colorClass = "score-90";
+            else if (x.score >= 80) colorClass = "score-80";
+            else if (x.score >= 60) colorClass = "score-60";
+
+            return `
+                <div class="card p-3 rounded-lg ${colorClass} ${pinned.has(x.s)?'is-pinned':''}" onclick="togglePin('${x.s}')">
+                    <div class="flex justify-between items-start mb-1">
+                        <div class="flex gap-1 flex-wrap max-w-[70%]">
+                            <span class="px-1 rounded bg-zinc-800 text-zinc-400">M7_VLD</span>
+                            <span class="px-1 rounded ${x.isSqz ? 'bg-green-600 text-white' : 'bg-zinc-800 text-zinc-500'}">TIGHT</span>
+                            ${x.isYao ? '<span class="bg-purple-900 text-purple-200 px-1 rounded text-[8px]">YAO</span>' : ''}
+                            ${x.drvVal > 85 ? '<span class="bg-red-900 text-red-200 px-1 rounded text-[8px]">DRV</span>' : ''}
+                        </div>
+                        <span class="text-xs font-black text-yellow-500 italic">SC: ${x.score}</span>
                     </div>
-                    <span class="text-xs font-black text-yellow-500 italic">SC: ${x.score}</span>
-                </div>
-                <div class="flex justify-between items-center mt-2">
-                    <h2 class="text-2xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
-                    <div class="text-right">
-                        <div class="${x.chg >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${x.chg}%</div>
-                        <div class="text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
+                    <div class="flex justify-between items-center mt-2">
+                        <h2 class="text-2xl font-black text-white italic tracking-tighter">${x.s.replace('USDT','')}</h2>
+                        <div class="text-right">
+                            <div class="${x.chg >= 0 ? 'text-green-500' : 'text-red-500'} font-bold">${x.chg}%</div>
+                            <div class="text-[9px] text-zinc-500">$${x.price.toFixed(4)}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 mt-2 mb-2 font-bold text-zinc-400">
+                        <div class="bg-black p-1 border border-zinc-800">SQZ: ${x.sqzVal.toFixed(2)}%</div>
+                        <div class="bg-black p-1 border border-zinc-800 text-right text-cyan-400">DRV: ${x.drvVal.toFixed(0)}</div>
+                    </div>
+                    <div class="flex gap-3 text-[9px] font-black uppercase mb-1">
+                        <span class="${x.isPoc ? 'text-green-500' : 'text-zinc-700'}">POC</span>
+                        <span class="${x.isSlp ? 'text-yellow-500' : 'text-zinc-700'}">SLP</span>
+                        <span class="${x.isSqz ? 'text-blue-500' : 'text-zinc-700'}">SQZ</span>
+                    </div>
+                    <div class="tsl-box">
+                        <span class="text-red-400">SL: $${x.tsl.toFixed(4)}</span>
+                        <span class="text-green-500">TP: $${x.ttp.toFixed(4)}</span>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-1 mt-2 mb-2 font-bold text-zinc-400">
-                    <div class="bg-black p-1 border border-zinc-800">SQZ: ${x.sqzVal.toFixed(2)}%</div>
-                    <div class="bg-black p-1 border border-zinc-800 text-right text-cyan-400">DRV: ${x.drvVal.toFixed(0)}</div>
-                </div>
-                <div class="flex gap-3 text-[9px] font-black uppercase mb-1">
-                    <span class="${x.isPoc ? 'text-green-500' : 'text-zinc-700'}">POC</span>
-                    <span class="${x.isSlp ? 'text-yellow-500' : 'text-zinc-700'}">SLP</span>
-                    <span class="${x.isSqz ? 'text-blue-500' : 'text-zinc-700'}">SQZ</span>
-                </div>
-                <div class="tsl-box">
-                    <span>SL: $${x.tsl.toFixed(4)}</span>
-                    <span class="text-green-700">TP: $${x.ttp.toFixed(4)}</span>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     function addLog(s, chg, score) {
         const container = document.getElementById('logContainer');
         const entry = document.createElement('div');
         entry.className = `p-2 bg-zinc-900 border-l-4 border-red-500 text-[9px] mb-1`;
-        entry.innerHTML = `<b>🔥 HUNTER: ${s}</b> [${chg}%] SC:${score} <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
+        entry.innerHTML = `<b>🔥 ${s}</b> [${chg}%] SC:${score} <span class="float-right text-zinc-600">${new Date().toLocaleTimeString()}</span>`;
         container.prepend(entry);
     }
 
